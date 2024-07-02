@@ -1,0 +1,19 @@
+[package]
+name = "macos_like_side_panel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.38"
+eframe = "0.27.2"
+egui = "0.27.2"
+openweathermap = "0.2.3"
+reqwest = {version = "0.11", features = ["blocking", "json"]} 
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+regex = {version = "1", featuers = ["full"] }
+task-hookrs = "0.9"
+
+
+
+

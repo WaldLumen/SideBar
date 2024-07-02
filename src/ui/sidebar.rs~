@@ -1,0 +1,203 @@
+use chrono::{DateTime, Utc};
+use std::process::Command;
+use std::time::{Duration, Instant};
+
+use egui::{Vec2, Frame, Pos2, Window, TextEdit};
+
+use crate::ui::widgets::todo_widget::get_tasks;
+use crate::ui::widgets::weather_plugin::get_weather;
+
+
+
+#[derive(Default)]
+pub(crate) struct SideBar {
+    is_widget: bool,
+    //update_weather: bool,
+    weather: Weather,
+    input_text: String,
+    show_popup: bool,
+    saved_text: String,
+}
+
+#[derive(Default)]
+pub(crate) struct Weather {
+    pub temp: String,
+    pub description: String,
+   // pub humidity: String,
+   // pub pressure: String,
+   // pub wind_speed: String,
+}
+
+impl SideBar {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        setup_custom_fonts(&cc.egui_ctx);
+        set_light_theme(&cc.egui_ctx);
+        Self::default()
+    }
+
+    pub fn show_weather_widget(&mut self, ui: &mut egui::Ui) {
+        let weather_data = get_weather();
+            self.weather = Weather {
+                temp: weather_data[0].to_string(),
+                description: weather_data[1].to_string(),
+                //humidity: weather_data[2].to_string(),
+                //pressure: weather_data[3].to_string(),
+                //wind_speed: weather_data[4].to_string(),
+            };
+          
+
+        let container_size = Vec2::new(430.0, 20.0);
+        let frame = Frame {
+            fill: egui::Color32::from_rgb(255, 228, 225),
+            stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
+            rounding: egui::Rounding::same(2.0),
+            ..Default::default()
+        };
+	
+            frame.show(ui, |ui| {
+                ui.set_min_size(container_size);
+
+                let rect = egui::Rect::from_min_size(Pos2::new(15.0, 71.0), Vec2::new(430.0, 24.0));
+                ui.allocate_ui_at_rect(rect, |ui| {
+                    ui.label("                          Temp:");
+		    ui.label(format!("                      {} {}", self.weather.temp, self.weather.description))
+                });
+            });
+       
+    }
+	pub fn show_pop_up(&mut self, ctx: &egui::Context) {
+	     Window::new("Popup")
+                        .title_bar(false)
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label("Новая задача:");
+                            ui.add(TextEdit::singleline(&mut self.input_text));
+
+                            if ui.button("Save").clicked() {
+                                self.saved_text = self.input_text.clone();
+                                self.show_popup = false;
+
+                                Command::new("task")
+                                    .arg("add")
+                                    .arg(format!("{}", self.saved_text))
+                                    .output()
+                                    .expect("Failed to execute 'task' command");
+                            }
+
+                            if ui.button("Close").clicked() {
+                                self.show_popup = false;
+                            }
+                        });
+	}
+    
+    pub fn show_tasks_widget(&mut self, ui: &mut egui::Ui) {
+        let container_size = Vec2::new(430.0, 40.0);
+        let frame = Frame {
+            fill: egui::Color32::from_rgb(255, 228, 225),
+            stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
+            rounding: egui::Rounding::same(2.0),
+            ..Default::default()
+        };
+        let vec = get_tasks();
+        let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 130.0), container_size);
+        let mut id = 0;
+        let mut y_cord = 133.0;
+
+        ui.allocate_ui_at_rect(container_rect, |ui| {
+            frame.show(ui, |ui| {
+                let rect3 = egui::Rect::from_min_size(Pos2::new(15.0, 130.0), Vec2::new(70.0, 24.0));
+                ui.allocate_ui_at_rect(rect3, |ui| {
+                    ui.allocate_space(Vec2::new(430.0, 0.0));
+                    ui.label("                         Tasks:");
+
+                    let rect = egui::Rect::from_min_size(Pos2::new(420.0, 133.0), Vec2::new(16.0, 16.0));
+                    ui.allocate_ui_at_rect(rect, |ui| {
+                        if ui.add(egui::Button::new("").fill(egui::Color32::from_rgb(255, 228, 225)).min_size(Vec2 { x: 16.0, y: 16.0 })).clicked() {
+                            self.show_popup = true;
+                        }
+                    });
+
+                    for item in vec {
+                        id += 1;
+                        y_cord += 20.0;
+                        for sub_item in item {
+                            ui.label(sub_item);
+
+                            let rect = egui::Rect::from_min_size(Pos2::new(420.0, y_cord), Vec2::new(16.0, 16.0));
+                            ui.allocate_ui_at_rect(rect, |ui| {
+                                if ui.add(egui::Button::new("󰆴").fill(egui::Color32::from_rgb(255, 228, 225)).min_size(Vec2 { x: 16.0, y: 16.0 })).clicked() {
+                                    Command::new("task")
+                                        .args(["rc.confirmation=no", "delete"])
+                                        .arg(format!("{}", id))
+                                        .output()
+                                        .expect("Failed to execute 'task' command");
+                                }
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    }
+}
+
+
+
+
+
+
+
+impl eframe::App for SideBar {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let now: DateTime<Utc> = Utc::now();
+        let time = now.format("%H:%M").to_string();
+        let date = now.format("%Y %m %d").to_string();
+
+        let _show = egui::CentralPanel::default().show(ctx, |ui| {
+            ctx.set_pixels_per_point(2.0);
+            ui.label(date);
+            ui.label(time);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                if ui.add(egui::Button::new("Widgets").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
+                    self.is_widget = true;
+                }
+                if ui.add(egui::Button::new("Notifications").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
+                    self.is_widget = false;
+                }
+            });
+
+            if self.is_widget {
+                self.show_weather_widget(ui);
+                self.show_tasks_widget(ui);
+
+                if self.show_popup {
+                    self.show_pop_up(ctx);
+                }
+            }
+        });
+    }
+}
+
+fn setup_custom_fonts(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "my_font".to_owned(),
+        egui::FontData::from_static(include_bytes!("../assets/fonts/JetBrainsMonoNerdFont-Medium.ttf")),
+    );
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "my_font".to_owned());
+    fonts
+        .families
+        .entry(egui::FontFamily::Monospace)
+        .or_default()
+        .push("my_font".to_owned());
+    ctx.set_fonts(fonts);
+}
+
+fn set_light_theme(ctx: &egui::Context) {
+    ctx.set_visuals(egui::Visuals::light());
+}
