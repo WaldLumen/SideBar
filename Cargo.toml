@@ -1,6 +1,6 @@
 [package]
-name = "macos_like_side_panel"
-version = "0.1.0"
+name = "SideBar"
+version = "1.0.1"
 edition = "2021"
 
 [dependencies]
