@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use egui::{Vec2, Context};
-use crate::task_manager::TaskManager;
-use crate::weather_widget::WeatherWidget;
+use crate::ui::task_manager::TaskManager;
+use crate::ui::weather_widget::WeatherWidget;
 
 pub(crate) struct SideBar {
     is_widget: bool,
