@@ -7,7 +7,7 @@ struct WeatherResponse {
     weather: Vec<Weather>, // Contains weather information
     main: Main, // Contains main weather parameters
     wind: Wind, // Contains wind information
-    name: String, // Contains the name of the queried location
+    //name: String, // Contains the name of the queried location
 }
 
 // Struct to represent weather description
@@ -54,19 +54,7 @@ fn get_weather_info(city: &str, country_code: &str, api_key: &str) -> Result<Wea
 
 
 // Function to get emoji based on temperature
-fn get_temperature_emoji(temperature: f64) -> &'static str {
-    if temperature < 0.0 {
-        "❄️"
-    } else if temperature >= 0.0 && temperature < 10.0 {
-        "☁️"
-    } else if temperature >= 10.0 && temperature < 20.0 {
-        "⛅"
-    } else if temperature >= 20.0 && temperature < 30.0 {
-        "🌤️"
-    } else {
-        "🔥"
-    }
-}
+
 
 pub fn get_weather() -> Vec<String>{
         let city = "Dnipro".trim();

@@ -1,6 +1,6 @@
 use crate::ui::widgets::todo_widget::get_tasks;
 use egui::{Frame, Pos2, TextEdit, Vec2, Window};
-use std::{fmt::format, process::Command};
+use std::process::Command;
 
 #[derive(Default)]
 pub(crate) struct TaskManager {
@@ -9,6 +9,7 @@ pub(crate) struct TaskManager {
     pub new_task_popup: bool,
     pub edit_task_popup: bool,
     pub saved_text: String,
+    pub main_container_size: Vec2,
 }
 
 #[derive(Default)]
@@ -74,22 +75,25 @@ impl TaskManager {
     }
 
     pub fn show_tasks_widget(&mut self, ui: &mut egui::Ui) {
-        let container_size = Vec2::new(430.0, 40.0);
-        let frame = Frame {
+        self.main_container_size = Vec2::new(430.0, 40.0);
+
+
+	let frame = Frame {	   
             fill: egui::Color32::from_rgb(255, 228, 225),
             stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
             rounding: egui::Rounding::same(2.0),
             ..Default::default()
         };
         let vec = get_tasks();
-        let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), container_size);
+        let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), self.main_container_size);
         let mut task_id = 0;
         let mut y_cord = 71.0;
 
+	
         ui.allocate_ui_at_rect(container_rect, |ui| {
-            let show = frame.show(ui, |ui| {
+            let _show = frame.show(ui, |ui| {
                 let rect3 = egui::Rect::from_min_size(Pos2::new(15.0, 71.0), Vec2::new(70.0, 24.0));
-                let allocate_ui_at_rect = ui.allocate_ui_at_rect(rect3, |ui| {
+                let _allocate_ui_at_rect = ui.allocate_ui_at_rect(rect3, |ui| {
                     ui.allocate_space(Vec2::new(430.0, 1.0));
                     ui.label("                         Tasks:");
 
@@ -100,7 +104,7 @@ impl TaskManager {
                             .add(
                                 egui::Button::new("+")
                                     .fill(egui::Color32::from_rgb(255, 228, 225))
-                                    .min_size(Vec2 { x: 4.0, y: 4.0 }),
+                                    .min_size(Vec2 { x: 4.0, y: 4.0 })
                             )
                             .clicked()
                         {
@@ -188,6 +192,8 @@ impl TaskManager {
                             });
                         }
                     }
+
+		    
                 });
             });
         });

@@ -41,7 +41,10 @@ impl eframe::App for SideBar {
             });
 
             if self.is_widget {
-                // Используем метод для отображения задач из TaskManager
+
+
+		self.weather_widget.show_weather_widget(ui);
+		
                 self.task_manager.show_tasks_widget(ui);
 
                 if self.task_manager.new_task_popup {
@@ -53,7 +56,7 @@ impl eframe::App for SideBar {
                 }
 
                 // Используем метод для отображения погоды из WeatherWidget
-                self.weather_widget.show_weather_widget(ui);
+                //self.weather_widget.show_weather_widget(ui);
             }
         });
     }
