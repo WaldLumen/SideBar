@@ -1,7 +1,3 @@
-//use eframe::icon_data::from_png_bytes; 
-//use std::process::Command;
-//use egui::{Frame, Pos2, TextEdit, Vec2, Window};
-
 mod ui;
 
 use ui::sidebar::SideBar;

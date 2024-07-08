@@ -98,52 +98,45 @@ impl TaskManager {
     }
 
 
-
-
-    
     pub fn show_tasks_widget(&mut self, ui: &mut egui::Ui) {
-        self.main_container_size = Vec2::new(430.0, 40.0);
+    self.main_container_size = Vec2::new(439.0, 170.0);
 
+    let frame = Frame {       
+        fill: egui::Color32::from_rgb(255, 228, 225),
+        stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
+        rounding: egui::Rounding::same(2.0),
+        ..Default::default()
+    };
+    let vec = get_tasks();
+    let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), self.main_container_size);
 
-	let frame = Frame {	   
-            fill: egui::Color32::from_rgb(255, 228, 225),
-            stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
-            rounding: egui::Rounding::same(2.0),
-            ..Default::default()
-        };
-        let vec = get_tasks();
-        let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), self.main_container_size);
-        let mut task_id = 0;
-        let mut y_cord = 71.0;
+    ui.allocate_ui_at_rect(container_rect, |ui| {
+        frame.show(ui, |ui| {
+            ui.label("                         Tasks:");
 
-	
-        ui.allocate_ui_at_rect(container_rect, |ui| {
-            let _show = frame.show(ui, |ui| {
-                let rect3 = egui::Rect::from_min_size(Pos2::new(15.0, 71.0), Vec2::new(70.0, 24.0));
-                let _allocate_ui_at_rect = ui.allocate_ui_at_rect(rect3, |ui| {
-                    ui.allocate_space(Vec2::new(430.0, 1.0));
-                    ui.label("                         Tasks:");
+            let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
+            ui.allocate_ui_at_rect(rect, |ui| {
+                if ui
+                    .add(
+                        egui::Button::new("+")
+                            .fill(egui::Color32::from_rgb(255, 228, 225))
+                            .min_size(Vec2 { x: 4.0, y: 4.0 }),
+                    )
+                    .clicked()
+                {
+                    self.new_task_popup = true;
+                    println!("new");
+                }
+            });
 
-                    let rect =
-                        egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
-                    ui.allocate_ui_at_rect(rect, |ui| {
-                        if ui
-                            .add(
-                                egui::Button::new("+")
-                                    .fill(egui::Color32::from_rgb(255, 228, 225))
-                                    .min_size(Vec2 { x: 4.0, y: 4.0 })
-                            )
-                            .clicked()
-                        {
-                            self.new_task_popup = true;
-                            println!("new");
-                        }
-                    });
-
+            // Создаем область с прокруткой
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    let mut task_id = 0;
                     for item in vec {
-                        task_id += 1;
-                        y_cord += 26.0;
                         for sub_item in item {
+                            task_id += 1;
                             let limit: usize = 43;
 
                             let task = if sub_item.chars().count() > limit {
@@ -152,68 +145,52 @@ impl TaskManager {
                                 sub_item.clone()
                             };
 
-                            ui.allocate_space(Vec2::new(430.0, 1.0));
-                            ui.label(format!(" {}", task));
-                            ui.allocate_space(Vec2::new(430.0, 1.0));
+                            ui.horizontal(|ui| {
+				ui.allocate_space(Vec2::new(3.0, 0.0));
+                                ui.label(format!(" {}", task));
 
-                            let rect = egui::Rect::from_min_size(
-                                Pos2::new(420.0, y_cord),
-                                Vec2::new(16.0, 16.0),
-                            );
-                            ui.allocate_ui_at_rect(rect, |ui| {
-                                if ui
-                                    .add(
-                                        egui::Button::new("󰆴")
-                                            .fill(egui::Color32::from_rgb(255, 228, 225))
-                                            .min_size(Vec2 { x: 16.0, y: 16.0 }),
-                                    )
-                                    .clicked()
-                                {
-                                    self.delete_task(task_id);
-                                }
-
-                                let rect = egui::Rect::from_min_size(
-                                    Pos2::new(380.0, y_cord),
-                                    Vec2::new(16.0, 16.0),
-                                );
-                                ui.allocate_ui_at_rect(rect, |ui| {
+				ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                                     if ui
-                                        .add(
+					.add(
+                                            egui::Button::new("󰆴")
+						.fill(egui::Color32::from_rgb(255, 228, 225))
+						.min_size(Vec2 { x: 16.0, y: 16.0 }),
+					)
+					.clicked()
+                                    {
+					self.delete_task(task_id);
+                                    }
+				    
+                                    if ui
+					.add(
                                             egui::Button::new("󰄲")
-                                                .fill(egui::Color32::from_rgb(255, 228, 225))
-                                                .min_size(Vec2 { x: 16.0, y: 16.0 }),
-                                        )
-                                        .clicked()
+						.fill(egui::Color32::from_rgb(255, 228, 225))
+                                            .min_size(Vec2 { x: 16.0, y: 16.0 }),
+					)
+					.clicked()
                                     {
 					self.done_task(task_id);
                                     }
-                                });
-
-                                let rect = egui::Rect::from_min_size(
-                                    Pos2::new(400.0, y_cord),
-                                    Vec2::new(16.0, 16.0),
-                                );
-                                ui.allocate_ui_at_rect(rect, |ui| {
+				    
                                     if ui
-                                        .add(
+					.add(
                                             egui::Button::new("")
-                                                .fill(egui::Color32::from_rgb(255, 228, 225))
-                                                .min_size(Vec2 { x: 16.0, y: 16.0 }),
-                                        )
-                                        .clicked()
+						.fill(egui::Color32::from_rgb(255, 228, 225))
+						.min_size(Vec2 { x: 16.0, y: 16.0 }),
+					)
+					.clicked()
                                     {
-                                        self.current_task_id = Some(task_id);
-                                        self.edit_task_popup = true;
-                                        self.input_text = sub_item.clone(); // Предзаполнение текущим текстом задачи
+					self.current_task_id = Some(task_id);
+					self.edit_task_popup = true;
+					self.input_text = sub_item.clone(); // Предзаполнение текущим текстом задачи
                                     }
-                                });
-                            });
+				});
+			    });
+				ui.add_space(4.0); // Добавляем пространство между задачами
                         }
                     }
-
-		    
                 });
-            });
         });
-    }
+    });
+}
 }

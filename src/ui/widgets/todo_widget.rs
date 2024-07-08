@@ -24,7 +24,7 @@ pub fn get_tasks() -> Vec<Vec<String>> {
     for id in 1..=max_id_int {
         let task_info = Command::new("sh")
             .arg("-c")
-            .arg(format!("task {} info | grep '^Description' | cut -d ' ' -f 2-", id))
+            .arg(format!("task {} info | grep -A 1 '^Description' | grep -v '^Status' | cut -d ' ' -f 2- | tr -s ' ' ", id))
             .stdout(Stdio::piped())
             .output()
             .expect("Failed to execute 'task' command");
