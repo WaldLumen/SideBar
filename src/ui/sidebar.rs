@@ -31,7 +31,7 @@ impl eframe::App for SideBar {
             ctx.set_pixels_per_point(2.0);
             ui.label(date);
             ui.label(time);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                 if ui.add(egui::Button::new("Widgets").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
                     self.is_widget = true;
                 }
@@ -40,7 +40,7 @@ impl eframe::App for SideBar {
                 }
             });
 
-            if self.is_widget {
+            if ! self.is_widget {
 
 
 		self.weather_widget.show_weather_widget(ui);

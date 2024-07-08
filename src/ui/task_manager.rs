@@ -16,24 +16,57 @@ pub(crate) struct TaskManager {
 pub(crate) struct Task {}
 
 impl TaskManager {
+    pub fn modify_task(&mut self) {
+	if let Some(task_id) = self.current_task_id {
+            Command::new("task")
+                .arg(format!("{}", task_id))
+                .arg("modify")
+                .arg("description:")
+                .arg(format!("{}", self.saved_text))
+                .output()
+                .expect("Failed to execute 'task' command"); 
+        }
+    }
+
+    pub fn add_task(&mut self){
+	Command::new("task")
+            .arg("add")
+            .arg(format!("{}", self.saved_text))
+            .output()
+            .expect("Failed to execute 'task' command");
+    }
+
+    pub fn delete_task(&mut self, task_id: i32){
+	Command::new("task")
+            .args(["rc.confirmation=no", "delete"])
+            .arg(format!("{}", task_id))
+            .output()
+            .expect("Failed to execute 'task' command");
+    }
+
+    pub fn done_task(&mut self, task_id: i32){
+	Command::new("task")
+            .arg("done")
+            .arg(format!("{}", task_id))
+            .output()
+            .expect("Failed to execute 'task' command");
+    }
+
+    
     pub fn new_task_popup(&mut self, ctx: &egui::Context) {
         Window::new("New Task")
             .title_bar(false)
             .collapsible(false)
             .resizable(false)
+	    .fixed_size(Vec2::new(300.0, 500.0))
             .show(ctx, |ui| {
                 ui.label("New task");
-                ui.add(TextEdit::singleline(&mut self.input_text));
+                ui.add(TextEdit::multiline(&mut self.input_text).min_size(Vec2::new(300.0, 100.0)));
 
                 if ui.button("Save").clicked() {
                     self.saved_text = self.input_text.clone();
                     self.new_task_popup = false;
-
-                    Command::new("task")
-                        .arg("add")
-                        .arg(format!("{}", self.saved_text))
-                        .output()
-                        .expect("Failed to execute 'task' command");
+		    self.add_task();
                 }
 
                 if ui.button("Close").clicked() {
@@ -47,25 +80,15 @@ impl TaskManager {
             .title_bar(false)
             .collapsible(false)
             .resizable(false)
+            .fixed_size(Vec2::new(300.0, 500.0))
             .show(ctx, |ui| {
                 ui.label("Edit task");
-                ui.add(TextEdit::singleline(&mut self.input_text));
+                ui.add(TextEdit::multiline(&mut self.input_text).min_size(Vec2::new(300.0, 100.0)));
 
                 if ui.button("Save").clicked() {
                     self.saved_text = self.input_text.clone();
                     self.edit_task_popup = false;
-
-                    if let Some(task_id) = self.current_task_id {
-                        let output = Command::new("task")
-                            .arg(format!("{}", task_id))
-                            .arg("modify")
-                            .arg("description:")
-                            .arg(format!("{}", self.saved_text))
-                            .output()
-                            .expect("Failed to execute 'task' command");
-
-                        println!("Command output: {:?}", output);
-                    }
+		    self.modify_task();
                 }
 
                 if ui.button("Close").clicked() {
@@ -74,6 +97,10 @@ impl TaskManager {
             });
     }
 
+
+
+
+    
     pub fn show_tasks_widget(&mut self, ui: &mut egui::Ui) {
         self.main_container_size = Vec2::new(430.0, 40.0);
 
@@ -142,11 +169,7 @@ impl TaskManager {
                                     )
                                     .clicked()
                                 {
-                                    Command::new("task")
-                                        .args(["rc.confirmation=no", "delete"])
-                                        .arg(format!("{}", task_id))
-                                        .output()
-                                        .expect("Failed to execute 'task' command");
+                                    self.delete_task(task_id);
                                 }
 
                                 let rect = egui::Rect::from_min_size(
@@ -162,12 +185,7 @@ impl TaskManager {
                                         )
                                         .clicked()
                                     {
-                                        Command::new("task")
-                                            .arg("done")
-                                            .arg(format!("{}", task_id))
-                                            .output()
-                                            .expect("Failed to execute 'task' command");
-					
+					self.done_task(task_id);
                                     }
                                 });
 
