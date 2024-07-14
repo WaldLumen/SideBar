@@ -21,9 +21,9 @@ impl WeatherWidget {
             "".to_string()
 	} else if self.weather[1] == "few clouds" {
             "".to_string()
-	} else if self.weather[1] == "scattered clouds " {
+	} else if self.weather[1] == "scattered clouds" {
             "".to_string()
-	} else if self.weather[1] == "broken clouds " {
+	} else if self.weather[1] == "broken clouds" {
             "".to_string()
 	} else if self.weather[1] == "shower rain" {
             "".to_string()

@@ -10,6 +10,9 @@ pub(crate) struct TaskManager {
     pub edit_task_popup: bool,
     pub saved_text: String,
     pub main_container_size: Vec2,
+    pub tasks: Vec<Vec<String>>,
+    pub first_call: bool,
+    pub is_update: bool,
 }
 
 #[derive(Default)]
@@ -42,6 +45,7 @@ impl TaskManager {
             .arg(format!("{}", task_id))
             .output()
             .expect("Failed to execute 'task' command");
+	
     }
 
     pub fn done_task(&mut self, task_id: i32){
@@ -67,6 +71,7 @@ impl TaskManager {
                     self.saved_text = self.input_text.clone();
                     self.new_task_popup = false;
 		    self.add_task();
+		    self.is_update = true;
                 }
 
                 if ui.button("Close").clicked() {
@@ -107,90 +112,103 @@ impl TaskManager {
         rounding: egui::Rounding::same(2.0),
         ..Default::default()
     };
-    let vec = get_tasks();
-    let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), self.main_container_size);
+	
+	if !self.first_call {
+	    self.tasks = get_tasks();
+	    self.first_call = true;
+	} else if self.is_update {
+	    self.tasks = get_tasks();
+	    self.is_update = false;
+	} 
+	    
 
-    ui.allocate_ui_at_rect(container_rect, |ui| {
-        frame.show(ui, |ui| {
-            ui.label("                         Tasks:");
 
-            let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
-            ui.allocate_ui_at_rect(rect, |ui| {
-                if ui
-                    .add(
-                        egui::Button::new("+")
-                            .fill(egui::Color32::from_rgb(255, 228, 225))
-                            .min_size(Vec2 { x: 4.0, y: 4.0 }),
-                    )
-                    .clicked()
-                {
-                    self.new_task_popup = true;
-                    println!("new");
-                }
-            });
+	
+	let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 71.0), self.main_container_size);
 
-            // Создаем область с прокруткой
-            egui::ScrollArea::vertical()
-                .auto_shrink([false; 2])
-                .show(ui, |ui| {
-                    let mut task_id = 0;
-                    for item in vec {
-                        for sub_item in item {
-                            task_id += 1;
-                            let limit: usize = 43;
-
-                            let task = if sub_item.chars().count() > limit {
-                                format!("{}...", &sub_item.chars().take(limit).collect::<String>())
-                            } else {
-                                sub_item.clone()
-                            };
-
-                            ui.horizontal(|ui| {
-				ui.allocate_space(Vec2::new(3.0, 0.0));
-                                ui.label(format!(" {}", task));
-
-				ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
-                                    if ui
-					.add(
-                                            egui::Button::new("󰆴")
-						.fill(egui::Color32::from_rgb(255, 228, 225))
-						.min_size(Vec2 { x: 16.0, y: 16.0 }),
-					)
-					.clicked()
-                                    {
-					self.delete_task(task_id);
-                                    }
-				    
-                                    if ui
-					.add(
-                                            egui::Button::new("󰄲")
-						.fill(egui::Color32::from_rgb(255, 228, 225))
-                                            .min_size(Vec2 { x: 16.0, y: 16.0 }),
-					)
-					.clicked()
-                                    {
-					self.done_task(task_id);
-                                    }
-				    
-                                    if ui
-					.add(
-                                            egui::Button::new("")
-						.fill(egui::Color32::from_rgb(255, 228, 225))
-						.min_size(Vec2 { x: 16.0, y: 16.0 }),
-					)
-					.clicked()
-                                    {
-					self.current_task_id = Some(task_id);
-					self.edit_task_popup = true;
-					self.input_text = sub_item.clone(); // Предзаполнение текущим текстом задачи
-                                    }
-				});
-			    });
-				ui.add_space(4.0); // Добавляем пространство между задачами
-                        }
+	ui.allocate_ui_at_rect(container_rect, |ui| {
+            frame.show(ui, |ui| {
+		ui.label("                         Tasks:");
+		
+		let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
+		ui.allocate_ui_at_rect(rect, |ui| {
+                    if ui
+			.add(
+                            egui::Button::new("+")
+				.fill(egui::Color32::from_rgb(255, 228, 225))
+				.min_size(Vec2 { x: 4.0, y: 4.0 }),
+			)
+			.clicked()
+                    {
+			self.new_task_popup = true;
                     }
-                });
-        });
-    });
-}
+		});
+		
+		// Создаем область с прокруткой
+		egui::ScrollArea::vertical()
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
+			let mut task_id = 0;
+			for item in self.tasks.clone() {
+                            for sub_item in item {
+				task_id += 1;
+				let limit: usize = 43;
+				
+				let task = if sub_item.chars().count() > limit {
+                                    format!("{}...", &sub_item.chars().take(limit).collect::<String>())
+				} else {
+                                    sub_item.clone()
+				};
+				
+				ui.horizontal(|ui| {
+				    ui.allocate_space(Vec2::new(3.0, 0.0));
+                                    ui.label(format!(" {}", task));
+				    
+				    ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
+                                    if ui
+					    .add(
+						egui::Button::new("󰆴")
+						    .fill(egui::Color32::from_rgb(255, 228, 225))
+						    .min_size(Vec2 { x: 16.0, y: 16.0 }),
+					    )
+					    .clicked()
+					{
+					    self.delete_task(task_id);
+					    self.is_update = true;
+					}
+					
+					if ui
+					    .add(
+						egui::Button::new("󰄲")
+						    .fill(egui::Color32::from_rgb(255, 228, 225))
+						    .min_size(Vec2 { x: 16.0, y: 16.0 }),
+					    )
+					    .clicked()
+					{
+					    self.done_task(task_id);
+					    self.is_update = true;
+					}
+					
+					if ui
+					    .add(
+						egui::Button::new("")
+						    .fill(egui::Color32::from_rgb(255, 228, 225))
+						    .min_size(Vec2 { x: 16.0, y: 16.0 }),
+					    )
+					    .clicked()
+					{
+					    self.current_task_id = Some(task_id);
+					    self.edit_task_popup = true;
+					    self.input_text = sub_item.clone();
+					    self.is_update = true;
+					}
+				    });
+				});
+				ui.add_space(4.0); // Добавляем пространство между задачами
+                            }
+			}
+                    });
+            });
+	});
+    }
 }
