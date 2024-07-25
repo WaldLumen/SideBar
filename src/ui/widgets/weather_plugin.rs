@@ -1,80 +1,89 @@
-use serde::Deserialize; // Importing serde for JSON deserialization
+use serde::Deserialize; // Импортирование serde для десериализации JSON
 use reqwest;
+use chrono::{DateTime, Utc, Duration, NaiveDate, Timelike};
+use std::collections::HashMap;
+use std::error::Error;
 
-// Struct to deserialize the JSON response from OpenWeatherMap API
 #[derive(Deserialize, Debug)]
-struct WeatherResponse {
-    weather: Vec<Weather>, // Contains weather information
-    main: Main, // Contains main weather parameters
-    wind: Wind, // Contains wind information
-    //name: String, // Contains the name of the queried location
+pub struct WeatherForecast {
+    pub list: Vec<WeatherEntry>, // Список прогнозов погоды
 }
 
-// Struct to represent weather description
 #[derive(Deserialize, Debug)]
-struct Weather {
-    description: String, // Contains textual weather description
+pub struct WeatherEntry {
+    pub dt: i64, // Метка времени прогноза
+    pub main: Main, // Основные параметры погоды
+    pub weather: Vec<WeatherDescription>, // Описание погоды
+    pub wind: Wind, // Информация о ветре
 }
 
-// Struct to represent main weather parameters
 #[derive(Deserialize, Debug)]
-struct Main {
-    temp: f64, // Temperature in Celsius
-    humidity: f64, // Humidity in percentage
-    pressure: f64, // Atmospheric pressure in hPa
+pub struct WeatherDescription {
+    pub description: String, // Текстовое описание погоды
 }
 
-// Struct to represent wind information
 #[derive(Deserialize, Debug)]
-struct Wind {
-    speed: f64, // Wind speed in meters per second
+pub struct Main {
+    pub temp: f64, // Температура в градусах Цельсия
+    pub humidity: f64, // Влажность в процентах
+    pub pressure: f64, // Атмосферное давление в гПа
 }
 
-// Function to get weather information from OpenWeatherMap API
-fn get_weather_info(city: &str, country_code: &str, api_key: &str) -> Result<WeatherResponse, reqwest::Error> {
-    // Constructing the URL for API request
+#[derive(Deserialize, Debug)]
+pub struct Wind {
+    pub speed: f64, // Скорость ветра в метрах в секунду
+}
+
+fn get_weather_info(city: &str, country_code: &str, api_key: &str) -> Result<WeatherForecast, Box<dyn Error>> {
     let url = format!(
-        "http://api.openweathermap.org/data/2.5/weather?q={},{}&units=metric&appid={}",
+        "http://api.openweathermap.org/data/2.5/forecast?q={},{}&units=metric&appid={}",
         city, country_code, api_key
     );
-
-    // Sending a blocking GET request to the API endpoint
     let response = reqwest::blocking::get(&url)?;
-    // Parsing the JSON response into WeatherResponse struct
-    let response_json = response.json::<WeatherResponse>()?;
-    Ok(response_json) // Returning the deserialized response
+    let response_json = response.json::<WeatherForecast>()?;
+    Ok(response_json)
 }
 
+pub fn get_weather() -> Result<WeatherForecast, Box<dyn Error>> {
+    let city = "Dnipro".trim();
+    let country_code = "UA".trim();
+    let api_key = "d8d31293bee740761c9ba933823c09ea";
+    
+    let forecast = get_weather_info(&city, &country_code, api_key)?;
+    
+    // Текущая дата и время UTC
+    let current_date = Utc::now();
+    // Дата и время через 4 дня
+    let end_date = current_date + Duration::days(4);
 
-//    let description = &response.weather[0].description;
-//    let temperature = response.main.temp;
-//    let humidity = response.main.humidity;
-//    let pressure = response.main.pressure;
-//    let wind_speed = response.wind.speed;
-
-
-// Function to get emoji based on temperature
-
-
-pub fn get_weather() -> Vec<String>{
-        let city = "Dnipro".trim();
-        let country_code = "UA".trim();
-
-        // Get your API key from OpenWeatherMap
-        let api_key = "d8d31293bee740761c9ba933823c09ea"; 
-
-        // Calling the function to fetch weather information
-        match get_weather_info(&city, &country_code, api_key) {
-            Ok(response) => {
-                return vec![response.main.temp.to_string(),
-			    response.weather[0].description.to_string(),
-			    response.main.humidity.to_string(),
-			    response.main.pressure.to_string(),
-			    response.wind.speed.to_string()
-		]; // Displaying weather information
-            }
-            Err(err) => {
-                return vec![err.to_string()]; // Printing error message in case of failure
+    // Группировка данных по дням и выбор записи для текущего дня и записи на час дня для следующих трех дней
+    let mut daily_forecasts: HashMap<NaiveDate, WeatherEntry> = HashMap::new();
+    
+    for entry in forecast.list {
+        let forecast_date = DateTime::<Utc>::from_utc(
+            chrono::NaiveDateTime::from_timestamp(entry.dt, 0),
+            Utc,
+        );
+        let date = forecast_date.date().naive_utc();
+        
+        if date >= current_date.date().naive_utc() && date < end_date.date().naive_utc() {
+            if date == current_date.date().naive_utc() {
+                // Для текущего дня выбираем ближайшее к текущему времени значение
+                daily_forecasts.entry(date).or_insert(entry);
+            } else if forecast_date.hour() == 12 {
+                // Для следующих дней выбираем значение на час дня
+                daily_forecasts.entry(date).or_insert(entry);
             }
         }
+    }
+
+    let mut limited_forecast: Vec<WeatherEntry> = daily_forecasts.into_iter()
+        .map(|(_, entry)| entry)
+        .collect();
+    
+    // Сортировка записей по дате
+    limited_forecast.sort_by_key(|entry| entry.dt);
+
+    Ok(WeatherForecast { list: limited_forecast })
 }
+

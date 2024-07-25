@@ -3,7 +3,7 @@ use crate::ui::task_manager::TaskManager;
 use crate::ui::weather_widget::WeatherWidget;
 
 pub(crate) struct SideBar {
-    is_widget: bool,
+    is_notifications: bool,
     task_manager: TaskManager,
     weather_widget: WeatherWidget,
 }
@@ -13,7 +13,7 @@ impl SideBar {
         setup_custom_fonts(&cc.egui_ctx);
         set_light_theme(&cc.egui_ctx);
         Self {
-            is_widget: false,
+            is_notifications: false,
             task_manager: TaskManager::default(),
             weather_widget: WeatherWidget::default(),
         }
@@ -27,17 +27,15 @@ impl eframe::App for SideBar {
 	    ui.allocate_space(Vec2::new(0.0, 30.0));
             ctx.set_pixels_per_point(2.0);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                if ui.add(egui::Button::new("Widgets").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
-                    self.is_widget = true;
-                }
                 if ui.add(egui::Button::new("Notifications").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
-                    self.is_widget = false;
+                    self.is_notifications = true;
+                }
+                if ui.add(egui::Button::new("Widgets").min_size(Vec2 { x: 210.0, y: 20.0 })).clicked() {
+                    self.is_notifications = false;
                 }
             });
 
-            if ! self.is_widget {
-
-
+            if !self.is_notifications {
 		self.weather_widget.show_weather_widget(ui);
 		
                 self.task_manager.show_tasks_widget(ui);
@@ -48,11 +46,13 @@ impl eframe::App for SideBar {
 
                 if self.task_manager.edit_task_popup {
                     self.task_manager.edit_task_popup(ctx);
-                }
+                } 
+		
 
                 // Используем метод для отображения погоды из WeatherWidget
                 //self.weather_widget.show_weather_widget(ui);
-            }
+            } else {
+	    }
         });
     }
 }
