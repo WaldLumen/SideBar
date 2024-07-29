@@ -8,6 +8,7 @@ pub(crate) struct TaskManager {
     pub tasks: Vec<Task>,
     pub task_project: String,    
     pub task_description: String,
+    pub project_category: String,
     
     pub current_task_id: Option<i32>,
     
@@ -21,6 +22,22 @@ pub(crate) struct TaskManager {
 
 
 impl TaskManager {
+    
+    pub fn get_project_names(&mut self) -> Vec<String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg("task projects | awk 'NR>3 && !/projects/ {print $1}'")
+        .output()
+        .expect("Failed to execute 'task' command");
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+
+    output_str
+        .lines()
+        .map(|s| s.to_string())
+        .collect()
+}
+    
     pub fn modify_task(&mut self) {
 	if let Some(task_id) = self.current_task_id {
             Command::new("task")
@@ -161,31 +178,78 @@ fn show_add_task_button(&mut self, ui: &mut egui::Ui) {
             )
             .clicked()
         {
-	    self.task_description = " ".to_string();
-	    self.task_project = " ".to_string();
+	    self.task_description = "".to_string();
+	    self.task_project = "".to_string();
             self.new_task_popup = true;
         }
     });
 }
 
+
 fn show_tasks(&mut self, ui: &mut egui::Ui, tasks: &Vec<Task>) {
-    for task in tasks {
-        let limit: usize = 42;
-        let description = if task.description.chars().count() > limit {
-            format!("{}...", &task.description.chars().take(limit).collect::<String>())
-        } else {
-            task.description.clone()
-        };
-
-        ui.horizontal(|ui| {
-            ui.allocate_space(Vec2::new(2.0, 0.0));
-            ui.label(format!(" {}", description));
-
-            self.task_actions(ui, task.id);
+    let project_names = self.get_project_names();
+    ui.allocate_space(Vec2::new(10.0, 0.0));
+    // Scroll area for project buttons
+    egui::ScrollArea::horizontal()
+        .auto_shrink([true; 2])
+        .id_source("projects_buttons_scroll_area")
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+		if ui
+                        .add(
+                            egui::Button::new("All")
+                                .fill(egui::Color32::from_rgb(255, 228, 225))
+                                .min_size(egui::Vec2 { x: 50.0, y: 20.0 }), // Adjust button size as needed
+                        )
+                        .clicked()
+                    {
+                        self.project_category = "All".to_string();
+                    }
+                for project in &project_names {
+                    if ui
+                        .add(
+                            egui::Button::new(format!("{}", project))
+                                .fill(egui::Color32::from_rgb(255, 228, 225))
+                                .min_size(egui::Vec2 { x: 50.0, y: 20.0 }), // Adjust button size as needed
+                        )
+                        .clicked()
+                    {
+                        self.project_category = project.clone();
+                    }
+                }		
+            });
         });
-        ui.add_space(4.0); // Add space between tasks
-    }
+
+
+    // Scroll area for tasks
+    egui::ScrollArea::horizontal()
+        .auto_shrink([false; 2])
+        .id_source("tasks_scroll_area")
+        .show(ui, |ui| {
+            for task in tasks {
+                let limit: usize = 42;
+                let description = if task.description.chars().count() > limit {
+                    format!("{}...", &task.description.chars().take(limit).collect::<String>())
+                } else {
+                    task.description.clone()
+                };
+
+                ui.horizontal(|ui| {
+                    ui.allocate_space(egui::Vec2::new(2.0, 0.0));
+                    if task.project == self.project_category {
+                        ui.label(format!(" {}", description));
+                        self.task_actions(ui, task.id);
+                    } else if self.project_category == "All" {
+			ui.label(format!(" {}", description));
+                        self.task_actions(ui, task.id);
+		    }		    
+                    ui.end_row(); 
+                });
+            }
+            ui.add_space(4.0); 
+        });
 }
+
     
      
 
@@ -232,4 +296,4 @@ fn show_tasks(&mut self, ui: &mut egui::Ui, tasks: &Vec<Task>) {
         });
     }
 
-}
+		    }
