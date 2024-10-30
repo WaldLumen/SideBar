@@ -1,4 +1,5 @@
-use std::process::{Command, Stdio};
+use serde_json::Value;
+use std::process::Command;
 use std::str;
 
 #[derive(Clone)]
@@ -9,56 +10,40 @@ pub struct Task {
 }
 
 pub fn get_tasks() -> Vec<Task> {
-    let max_id_raw = Command::new("task")
-        .args(["+PENDING", "count"])
+    // Выполняем команду `task` для экспорта задач в формате JSON
+    let output = Command::new("task")
+        .args(["+PENDING", "export"])
         .output()
         .expect("Failed to execute 'task' command");
 
-    let max_id_str = str::from_utf8(&max_id_raw.stdout)
-        .expect("Failed to convert output to string");
+    // Преобразуем вывод команды в строку
+    let json_str = str::from_utf8(&output.stdout).expect("Failed to convert output to string");
 
-    let max_id_int: i32 = max_id_str.trim().parse().expect("Failed to parse max ID");
+    // Парсим строку как JSON
+    let parsed: Vec<Value> = serde_json::from_str(json_str).expect("Failed to parse JSON");
 
     let mut tasks = Vec::new();
 
-    for id in 1..=max_id_int {
-        let task_info = Command::new("sh")
-            .arg("-c")
-            .arg(format!(
-                "task {} info | grep -A 1 '^Description' | grep -v '^Status' | cut -d ' ' -f 2- | tr -s ' '",
-                id
-            ))
-            .stdout(Stdio::piped())
-            .output()
-            .expect("Failed to execute 'task' command");
+    // Проходим по каждой задаче в JSON-массиве
+    for task_data in parsed {
+        // Извлекаем описание задачи
+        let description = task_data["description"].as_str().unwrap_or("").to_string();
 
-        let task_description = str::from_utf8(&task_info.stdout)
-            .expect("Failed to convert output to string")
-            .trim()
-            .to_string();
+        // Извлекаем проект задачи
+        let project = task_data["project"].as_str().unwrap_or("").to_string();
 
-        let raw_task_project = Command::new("sh")
-            .arg("-c")
-            .arg(format!(
-                "task {} info | grep -A 0 '^Project' | grep -v '^Status' | cut -d ' ' -f 2- | tr -s ' '",
-                id
-            ))
-            .stdout(Stdio::piped())
-            .output()
-            .expect("Failed to execute 'task' command");
+        // Извлекаем ID задачи
+        let id = task_data["id"].as_i64().unwrap_or(0) as i32;
 
-        let task_project = str::from_utf8(&raw_task_project.stdout)
-            .expect("Failed to convert output to string")
-            .trim()
-            .to_string();
-
-        let task = Task {
-            description: task_description,
-            project: task_project,
-            id,
-        };
-
-        tasks.push(task);
+        // Проверяем, что проект не пустой, прежде чем добавлять задачу
+        if !project.is_empty() {
+            let task = Task {
+                description,
+                project,
+                id,
+            };
+            tasks.push(task);
+        }
     }
 
     tasks
