@@ -51,11 +51,11 @@ impl eframe::App for SideBar {
             });
 
             if !self.is_notifications {
-                //self.weather_widget.show_weather_widget(ui);
+                self.weather_widget.show_weather_widget(ui);
 
-                //self.task_manager.show_tasks_widget(ui);
-                //self.water_manager.water_widget(ui);
-                self.food_widget.food_widget(ui);
+                self.task_manager.show_tasks_widget(ui);
+                self.water_manager.water_widget(ui);
+                //self.food_widget.food_widget(ui);
 
                 if self.task_manager.new_task_popup {
                     self.task_manager.new_task_popup(ctx);
