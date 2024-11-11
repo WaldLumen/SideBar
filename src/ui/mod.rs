@@ -1,6 +1,7 @@
 pub mod sidebar;
 pub mod widgets;
 
+pub mod async_food_widget;
 pub mod food_widget;
 pub mod health_widget;
 pub mod reminders_manager;

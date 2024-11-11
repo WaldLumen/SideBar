@@ -1,4 +1,4 @@
-use crate::ui::food_widget::FoodWidget;
+use crate::ui::async_food_widget::FoodWidget;
 use crate::ui::health_widget::WaterManager;
 use crate::ui::reminders_manager::RemindersManager;
 use crate::ui::task_manager::TaskManager;
@@ -52,10 +52,9 @@ impl eframe::App for SideBar {
 
             if !self.is_notifications {
                 self.weather_widget.show_weather_widget(ui);
-
-                self.task_manager.show_tasks_widget(ui);
+                self.task_manager.show_tasks_widget(ui, ctx);
                 self.water_manager.water_widget(ui);
-                //self.food_widget.food_widget(ui);
+                self.food_widget.food_widget(ui);
 
                 if self.task_manager.new_task_popup {
                     self.task_manager.new_task_popup(ctx);
