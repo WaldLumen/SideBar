@@ -1,0 +1,49 @@
+use egui::{Color32, Frame, Pos2, TextEdit, Vec2, Window};
+//use std::process::Command;
+use rusqlite::{Connection, Result};
+
+// Пока что из вариантов:
+// 1. воспользоваться API CalorieNinjas прогоняя запрос и ответ через переводчик, хотя если быть более точнфм то не ответ с запросом а просто название блюд, так как каллорийность + белки + жиры и тд будет зафиксировано в ui.
+// 2. Создать базу данных и в ручную занести туда те блюда которые я наиболее часто поглощаю с нужной информауией.
+// 3. Парсить данные из https://foodstruct.com/ru/food/{name}. Прикольная штука на самом деле, просто вводишь в конце урл-а название продукта и получашешь всю инфу о нем в виде хтмл страницы.
+
+// Water Tracker
+#[derive(Default)]
+pub(crate) struct HealthManager{
+    is_first: bool
+}
+
+impl HealthManager {
+
+    pub fn water_widget(&mut self, ui: &mut egui::Ui) {	
+	
+	    let _ = self.create_database();
+	    self.is_first = false;
+	
+	
+	let frame = Frame {
+            fill: Color32::from_rgb(255, 228, 225),
+            stroke: egui::Stroke::new(1.0, Color32::from_rgb(253, 108, 158)),
+            rounding: egui::Rounding::same(2.0),
+            ..Default::default()
+        };
+
+        let container_rect =
+            egui::Rect::from_min_size(Pos2::new(7.0, 585.0), Vec2::new(438.0, 170.0));
+
+	
+	ui.allocate_ui_at_rect(container_rect, |ui| {
+            frame.show(ui, |ui| {
+		ui.allocate_space(Vec2::new(150.0, 10.0));
+		ui.label("Water:");
+		ui.allocate_space(Vec2::new(438.0, 160.0));
+				
+	    });
+	});
+    }
+
+    fn create_database(&mut self) -> Result<()> {
+	Ok(())
+    }
+}
+
