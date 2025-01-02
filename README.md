@@ -1,1 +1,1 @@
-1
+Customizable Sidebar app for linux
