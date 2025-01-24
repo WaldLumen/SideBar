@@ -1,0 +1,16 @@
+[package]
+name = "SideBar"
+version = "1.0.1"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.38"
+calory_fetch = { path = "../CaloryFetch" }
+eframe = "0.27.2"
+egui = "0.27.2"
+reqwest = {version = "0.11", features = ["blocking", "json"]} 
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+sled = "0.34.7"
+serde_json = { version = "1.0.128" }
+bincode = "1.3.3"
