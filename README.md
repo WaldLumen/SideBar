@@ -1,1 +1,1 @@
-1
+Customizable sidebar app for Linux in Rust
