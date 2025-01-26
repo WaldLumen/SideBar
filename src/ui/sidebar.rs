@@ -1,5 +1,4 @@
-use crate::ui::async_food_widget::FoodWidget;
-use crate::ui::health_widget::WaterManager;
+use crate::ui::health_widget::{combined_widget, FoodWidget, WaterManager};
 use crate::ui::reminders_manager::RemindersManager;
 use crate::ui::task_manager::TaskManager;
 use crate::ui::weather_widget::WeatherWidget;
@@ -11,8 +10,8 @@ pub(crate) struct SideBar {
     task_manager: TaskManager,
     weather_widget: WeatherWidget,
     reminders_manager: RemindersManager,
-    water_manager: WaterManager,
     food_widget: FoodWidget,
+    water_manager: WaterManager,
 }
 
 impl SideBar {
@@ -24,8 +23,8 @@ impl SideBar {
             task_manager: TaskManager::default(),
             weather_widget: WeatherWidget::default(),
             reminders_manager: RemindersManager::default(),
-            water_manager: WaterManager::default(),
             food_widget: FoodWidget::default(),
+            water_manager: WaterManager::default(),
         }
     }
 }
@@ -53,8 +52,7 @@ impl eframe::App for SideBar {
             if !self.is_notifications {
                 self.weather_widget.show_weather_widget(ui);
                 self.task_manager.show_tasks_widget(ui, ctx);
-                self.water_manager.water_widget(ui);
-                self.food_widget.food_widget(ui);
+                combined_widget(ui, &mut self.food_widget, &mut self.water_manager);
 
                 if self.task_manager.new_task_popup {
                     self.task_manager.new_task_popup(ctx);
