@@ -167,8 +167,6 @@ impl TaskManager {
         self.main_container_size = Vec2::new(438.0, 170.0);
 
         let frame = Frame {
-            fill: Color32::from_rgb(255, 228, 225),
-            stroke: egui::Stroke::new(1.0, Color32::from_rgb(253, 108, 158)),
             rounding: egui::Rounding::same(2.0),
             ..Default::default()
         };
@@ -210,11 +208,7 @@ impl TaskManager {
         let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
         ui.allocate_ui_at_rect(rect, |ui| {
             if ui
-                .add(
-                    egui::Button::new("+")
-                        .fill(Color32::from_rgb(255, 228, 225))
-                        .min_size(Vec2 { x: 4.0, y: 4.0 }),
-                )
+                .add(egui::Button::new("+").min_size(Vec2 { x: 4.0, y: 4.0 }))
                 .clicked()
             {
                 self.task_description = "".to_string();
@@ -226,11 +220,7 @@ impl TaskManager {
 
     fn create_project_button(&mut self, ui: &mut egui::Ui, label: String, project: String) {
         if ui
-            .add(
-                egui::Button::new(label)
-                    .fill(egui::Color32::from_rgb(255, 228, 225))
-                    .min_size(egui::Vec2 { x: 50.0, y: 20.0 }),
-            )
+            .add(egui::Button::new(label).min_size(egui::Vec2 { x: 50.0, y: 20.0 }))
             .clicked()
         {
             self.project_category = project.to_string();
@@ -311,7 +301,6 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("") // Иконка для редактирования
-                        .fill(Color32::from_rgb(255, 228, 225)) // Розовый фон
                         .min_size(Vec2 { x: 16.0, y: 16.0 }),
                 )
                 .clicked()
@@ -338,7 +327,6 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("󰆴") // Иконка для удаления
-                        .fill(Color32::from_rgb(255, 228, 225)) // Розовый фон
                         .min_size(Vec2 { x: 16.0, y: 16.0 }),
                 )
                 .clicked()
@@ -350,7 +338,6 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("󰄲") // Иконка для завершения задачи
-                        .fill(Color32::from_rgb(255, 228, 225)) // Розовый фон
                         .min_size(Vec2 { x: 16.0, y: 16.0 }),
                 )
                 .clicked()

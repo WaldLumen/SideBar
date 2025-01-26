@@ -90,11 +90,7 @@ impl FoodWidget {
                             );
 
                             if ui
-                                .add_sized(
-                                    Vec2::new(80.0, 25.0),
-                                    egui::Button::new("Поиск")
-                                        .fill(Color32::from_rgb(255, 228, 225)),
-                                )
+                                .add_sized(Vec2::new(80.0, 25.0), egui::Button::new("Поиск"))
                                 .clicked()
                             {
                                 let result = rt.block_on(fetch_data(&self.query));
@@ -116,8 +112,7 @@ impl FoodWidget {
                                     if ui
                                         .add_sized(
                                             Vec2::new(ui.available_width(), 30.0),
-                                            egui::Button::new(name)
-                                                .fill(Color32::from_rgb(255, 228, 225)),
+                                            egui::Button::new(name),
                                         )
                                         .clicked()
                                     {
@@ -188,7 +183,6 @@ impl WaterManager {
                                     if ui
                                         .add(
                                             egui::Button::new("+")
-                                                .fill(Color32::from_rgb(255, 228, 225))
                                                 .min_size(Vec2 { x: 14.0, y: 10.0 }),
                                         )
                                         .clicked()
@@ -204,7 +198,6 @@ impl WaterManager {
                                     if ui
                                         .add(
                                             egui::Button::new("-")
-                                                .fill(Color32::from_rgb(255, 228, 225))
                                                 .min_size(Vec2 { x: 14.0, y: 10.0 }),
                                         )
                                         .clicked()
@@ -297,8 +290,6 @@ pub fn combined_widget(
     water_manager: &mut WaterManager,
 ) {
     let frame = Frame {
-        fill: Color32::from_rgb(255, 228, 225),
-        stroke: egui::Stroke::new(1.0, Color32::from_rgb(253, 108, 158)),
         rounding: egui::Rounding::same(2.0),
         ..Default::default()
     };

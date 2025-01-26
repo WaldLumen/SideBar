@@ -60,8 +60,6 @@ impl WeatherWidget {
         if let Some(weather_forecast) = &self.weather_forecast {
             let container_size = Vec2::new(438.0, 50.0);
             let frame = Frame {
-                fill: egui::Color32::from_rgb(255, 228, 225),
-                stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(253, 108, 158)),
                 rounding: egui::Rounding::same(2.0),
                 ..Default::default()
             };
