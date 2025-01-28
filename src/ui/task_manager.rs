@@ -1,6 +1,6 @@
 use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::widgets::todo_widget::{get_tasks, Task};
-use egui::{Color32, Frame, Key, Pos2, Rect, TextEdit, Vec2, Window};
+use egui::{Frame, Key, Pos2, Rect, TextEdit, Vec2, Window};
 use std::process::Command;
 
 pub(crate) struct TaskManager {

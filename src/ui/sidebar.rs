@@ -61,6 +61,10 @@ impl eframe::App for SideBar {
                 if self.task_manager.edit_task_popup {
                     self.task_manager.edit_task_popup(ctx);
                 }
+
+                if self.food_widget.calory_popup {
+                    self.food_widget.calory_popup(ctx);
+                }
             } else {
             }
         });

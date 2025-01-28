@@ -2,23 +2,69 @@ use crate::ui::color_parser::parse_color_from_ini;
 use bincode;
 use calory_fetch::{fetch_calory_of_certain_food, fetch_data};
 use chrono::{DateTime, Local};
-use egui::{Color32, Frame, Pos2, Ui, Vec2};
+use egui::{Frame, Pos2, TextEdit, Ui, Vec2, Window};
 use sled::{Db, Result};
 
 use tokio::runtime::Runtime;
 
 #[derive(Default)]
 pub struct FoodWidget {
-    query: String,
-    results: Vec<(String, String)>, // Хранит список (название и URL) для каждого результата
-    selected_food: Option<(String, String)>, // Хранит выбранное название и калорийность блюда
-    db: Option<Db>,                 // Опциональная база данных
-    calory: i32,                    // Калорийность для текущей даты
+    pub query: String,
+    pub dish_name: String,
+    pub results: Vec<(String, String)>,
+    pub dish_calory: i32, // Хранит список (название и URL) для каждого результата
+    pub selected_food: Option<(String, String)>, // Хранит выбранное название и калорийность блюда
+    pub db: Option<Db>,   // Опциональная база данных
+    pub calory: i32,      // Калорийность для текущей даты
+    pub calory_popup: bool,
+    pub food_amount: String,
 }
 
 impl FoodWidget {
     fn open_db(&self, path: &str) -> Result<Db> {
         sled::open(path)
+    }
+    pub fn calory_popup(&mut self, ctx: &egui::Context) {
+        if self.calory_popup {
+            Window::new("Calory")
+                .title_bar(false)
+                .collapsible(false)
+                .resizable(false)
+                .fixed_size(Vec2::new(300.0, 500.0))
+                .show(ctx, |ui| {
+                    // Label for input
+                    ui.label(self.dish_name.clone());
+                    ui.label(format!("{} kkal in 100 mg", self.dish_calory));
+                    ui.label("Food Amount (in grams):");
+                    // Input field with hint text
+                    ui.add(
+                        TextEdit::multiline(&mut self.food_amount)
+                            .hint_text("Enter amount here...")
+                            .min_size(Vec2::new(300.0, 100.0)),
+                    );
+
+                    // Parse food_amount input
+                    if let Ok(food_amount_int) = self.food_amount.parse::<i32>() {
+                        let calculated_calory = food_amount_int * self.dish_calory / 100;
+
+                        // Display calculated calories
+                        ui.label(format!("Calories: {}", calculated_calory));
+
+                        // Add button (only active when input is valid)
+                        if ui.button("Add").clicked() {
+                            self.update_today_calory(calculated_calory);
+                            self.calory_popup = false;
+                        }
+                    }
+
+                    /*
+                    Close button
+                    */
+                    if ui.button("Close").clicked() {
+                        self.calory_popup = false;
+                    }
+                });
+        }
     }
 
     fn init_today_record(&mut self) {
@@ -94,7 +140,7 @@ impl FoodWidget {
                             if ui
                                 .add_sized(
                                     Vec2::new(80.0, 25.0),
-                                    egui::Button::new("Поиск")
+                                    egui::Button::new("Search")
                                         .fill(parse_color_from_ini("button-color")),
                                 )
                                 .clicked()
@@ -118,7 +164,8 @@ impl FoodWidget {
                                     if ui
                                         .add_sized(
                                             Vec2::new(ui.available_width(), 30.0),
-                                            egui::Button::new(name),
+                                            egui::Button::new(name.clone())
+                                                .fill(parse_color_from_ini("button-color")),
                                         )
                                         .clicked()
                                     {
@@ -129,11 +176,18 @@ impl FoodWidget {
                                         self.selected_food =
                                             Some((calory[1].clone(), calory[0].clone()));
 
-                                        // Получаем калорийность как целое число
-                                        let additional_calory: i32 = calory[0].parse().unwrap_or(0);
+                                        self.dish_calory = calory[0]
+                                            .clone()
+                                            .chars()
+                                            .filter(|c| c.is_ascii_digit()) // Keep only numeric characters
+                                            .collect::<String>() // Collect into a String
+                                            .parse() // Parse the String to an i32
+                                            .unwrap_or(0); // Default to 0 if parsing fails
 
                                         // Обновляем данные калорийности вне замыкания
-                                        self.update_today_calory(additional_calory);
+
+                                        self.food_amount = "0".to_string();
+                                        self.calory_popup = true;
                                     }
                                 }
                             });
@@ -155,6 +209,7 @@ pub struct WaterManager {
     pub water_amount: u32,
     pub is_update: bool,
     pub is_first_call: bool,
+    pub is_first_init: bool,
 }
 
 impl WaterManager {
@@ -163,10 +218,11 @@ impl WaterManager {
 
         // Открываем базу данных с обработкой ошибок
         let db: Db = self.open_db("~/.local/share/SideBarWaterDb")?;
-
-        // Инициализируем запись на текущую дату и устанавливаем значение self.water_amount
-        self.init_today_record(&db, date.clone())?;
-
+        if !self.is_first_init {
+            // Инициализируем запись на текущую дату и устанавливаем значение self.water_amount
+            self.init_today_record(&db, date.clone())?;
+            self.is_first_init = true;
+        }
         if self.is_update || self.is_first_call {
             match self.get_water_data(&db, date.clone()).unwrap() {
                 Some(amount) => {
