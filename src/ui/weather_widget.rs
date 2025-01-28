@@ -1,3 +1,4 @@
+use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::widgets::weather_plugin::{get_weather, WeatherForecast};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use egui::{FontId, Frame, Pos2, TextStyle, Ui, Vec2};
@@ -60,6 +61,8 @@ impl WeatherWidget {
         if let Some(weather_forecast) = &self.weather_forecast {
             let container_size = Vec2::new(438.0, 50.0);
             let frame = Frame {
+                fill: parse_color_from_ini("frame-background"),
+                stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
                 rounding: egui::Rounding::same(2.0),
                 ..Default::default()
             };

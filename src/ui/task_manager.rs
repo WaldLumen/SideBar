@@ -1,3 +1,4 @@
+use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::widgets::todo_widget::{get_tasks, Task};
 use egui::{Color32, Frame, Key, Pos2, Rect, TextEdit, Vec2, Window};
 use std::process::Command;
@@ -167,6 +168,8 @@ impl TaskManager {
         self.main_container_size = Vec2::new(438.0, 170.0);
 
         let frame = Frame {
+            fill: parse_color_from_ini("frame-background"),
+            stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
             rounding: egui::Rounding::same(2.0),
             ..Default::default()
         };
@@ -208,7 +211,11 @@ impl TaskManager {
         let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
         ui.allocate_ui_at_rect(rect, |ui| {
             if ui
-                .add(egui::Button::new("+").min_size(Vec2 { x: 4.0, y: 4.0 }))
+                .add(
+                    egui::Button::new("+")
+                        .min_size(Vec2 { x: 4.0, y: 4.0 })
+                        .fill(parse_color_from_ini("button-color")),
+                )
                 .clicked()
             {
                 self.task_description = "".to_string();
@@ -220,7 +227,11 @@ impl TaskManager {
 
     fn create_project_button(&mut self, ui: &mut egui::Ui, label: String, project: String) {
         if ui
-            .add(egui::Button::new(label).min_size(egui::Vec2 { x: 50.0, y: 20.0 }))
+            .add(
+                egui::Button::new(label)
+                    .min_size(egui::Vec2 { x: 50.0, y: 20.0 })
+                    .fill(parse_color_from_ini("button-color")),
+            )
             .clicked()
         {
             self.project_category = project.to_string();
@@ -301,7 +312,8 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("") // Иконка для редактирования
-                        .min_size(Vec2 { x: 16.0, y: 16.0 }),
+                        .min_size(Vec2 { x: 16.0, y: 16.0 })
+                        .fill(parse_color_from_ini("button-color")),
                 )
                 .clicked()
             {
@@ -327,7 +339,8 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("󰆴") // Иконка для удаления
-                        .min_size(Vec2 { x: 16.0, y: 16.0 }),
+                        .min_size(Vec2 { x: 16.0, y: 16.0 })
+                        .fill(parse_color_from_ini("button-color")),
                 )
                 .clicked()
             {
@@ -338,7 +351,8 @@ impl TaskManager {
             if ui
                 .add(
                     egui::Button::new("󰄲") // Иконка для завершения задачи
-                        .min_size(Vec2 { x: 16.0, y: 16.0 }),
+                        .min_size(Vec2 { x: 16.0, y: 16.0 })
+                        .fill(parse_color_from_ini("button-color")),
                 )
                 .clicked()
             {

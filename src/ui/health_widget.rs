@@ -1,8 +1,10 @@
+use crate::ui::color_parser::parse_color_from_ini;
 use bincode;
 use calory_fetch::{fetch_calory_of_certain_food, fetch_data};
 use chrono::{DateTime, Local};
 use egui::{Color32, Frame, Pos2, Ui, Vec2};
 use sled::{Db, Result};
+
 use tokio::runtime::Runtime;
 
 #[derive(Default)]
@@ -84,13 +86,17 @@ impl FoodWidget {
                         ui.horizontal(|ui| {
                             // Поле для ввода количества калорий для добавления или вычитания
 
-                            ui.add_sized(
+                            let add_sized = ui.add_sized(
                                 Vec2::new(135.0, 25.0),
                                 egui::TextEdit::singleline(&mut self.query),
                             );
 
                             if ui
-                                .add_sized(Vec2::new(80.0, 25.0), egui::Button::new("Поиск"))
+                                .add_sized(
+                                    Vec2::new(80.0, 25.0),
+                                    egui::Button::new("Поиск")
+                                        .fill(parse_color_from_ini("button-color")),
+                                )
                                 .clicked()
                             {
                                 let result = rt.block_on(fetch_data(&self.query));
@@ -183,7 +189,8 @@ impl WaterManager {
                                     if ui
                                         .add(
                                             egui::Button::new("+")
-                                                .min_size(Vec2 { x: 14.0, y: 10.0 }),
+                                                .min_size(Vec2 { x: 14.0, y: 10.0 })
+                                                .fill(parse_color_from_ini("button-color")),
                                         )
                                         .clicked()
                                     {
@@ -198,6 +205,7 @@ impl WaterManager {
                                     if ui
                                         .add(
                                             egui::Button::new("-")
+                                                .fill(parse_color_from_ini("button-color"))
                                                 .min_size(Vec2 { x: 14.0, y: 10.0 }),
                                         )
                                         .clicked()
@@ -290,6 +298,8 @@ pub fn combined_widget(
     water_manager: &mut WaterManager,
 ) {
     let frame = Frame {
+        fill: parse_color_from_ini("frame-background"),
+        stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
         rounding: egui::Rounding::same(2.0),
         ..Default::default()
     };

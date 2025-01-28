@@ -1,5 +1,6 @@
 mod ui;
-
+#[macro_use]
+extern crate ini;
 use ui::sidebar::SideBar;
 
 fn main() {
