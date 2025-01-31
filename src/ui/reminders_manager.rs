@@ -89,7 +89,7 @@ impl RemindersManager {
     }
 
     pub fn create_reminder_popup(&mut self, ctx: &egui::Context) {
-        Window::new("Edit Task")
+        Window::new("Add Reminder")
             .title_bar(false)
             .collapsible(false)
             .resizable(false)
