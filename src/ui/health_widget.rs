@@ -4,6 +4,7 @@ use calory_fetch::{fetch_calory_of_certain_food, fetch_data};
 use chrono::{DateTime, Local};
 use egui::{Frame, Pos2, TextEdit, Ui, Vec2, Window};
 use sled::{Db, Result};
+use std::env;
 
 use tokio::runtime::Runtime;
 
@@ -104,10 +105,12 @@ impl FoodWidget {
     }
 
     fn calorie_adjustment_widget(&mut self, ui: &mut Ui, frame: Frame) -> Result<()> {
+        let home: String = env::var("HOME").expect("Could not determine the home directory");
+        let db_path: String = format!("{}/{}", home, ".local/share/SideBarFoodDb");
         let rt = Runtime::new().unwrap();
         let date = self.get_date();
         if self.db.is_none() {
-            self.db = Some(self.open_db("$HOME/.local/share/SideBarFoodDb")?);
+            self.db = Some(self.open_db(&db_path)?);
             self.init_today_record();
         }
 
@@ -215,9 +218,11 @@ pub struct WaterManager {
 impl WaterManager {
     pub fn water_widget(&mut self, ui: &mut egui::Ui, frame: Frame) -> Result<()> {
         let date: String = self.get_date();
+        let home: String = env::var("HOME").expect("Could not determine the home directory");
+        let db_path: String = format!("{}/{}", home, ".local/share/SideBarWaterDb");
 
         // Открываем базу данных с обработкой ошибок
-        let db: Db = self.open_db("~/.local/share/SideBarWaterDb")?;
+        let db: Db = self.open_db(&db_path)?;
         if !self.is_first_init {
             // Инициализируем запись на текущую дату и устанавливаем значение self.water_amount
             self.init_today_record(&db, date.clone())?;
