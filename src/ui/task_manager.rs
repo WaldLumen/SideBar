@@ -110,13 +110,28 @@ impl TaskManager {
                         TextEdit::multiline(&mut self.task_project)
                             .min_size(Vec2::new(300.0, 100.0)),
                     );
-                    if ui.button("Save").clicked() {
+
+                    if ui
+                        .add(
+                            egui::Button::new("Save")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.new_task_popup = false;
                         self.add_task();
                         self.is_update = true;
                     }
 
-                    if ui.button("Close").clicked() {
+                    if ui
+                        .add(
+                            egui::Button::new("Close")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.new_task_popup = false;
                     }
                 });
@@ -143,13 +158,27 @@ impl TaskManager {
                             .min_size(Vec2::new(300.0, 100.0)),
                     );
 
-                    if ui.button("Save").clicked() {
+                    if ui
+                        .add(
+                            egui::Button::new("Save")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.edit_task_popup = false;
                         self.modify_task();
                     }
 
-                    if ui.button("Close").clicked() {
-                        self.edit_task_popup = false;
+                    if ui
+                        .add(
+                            egui::Button::new("Close")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
+                        self.new_task_popup = false;
                     }
                 });
         }

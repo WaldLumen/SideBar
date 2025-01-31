@@ -42,13 +42,27 @@ impl Settings {
                     ui.label("Select a Theme:");
 
                     for section in self.themes.clone() {
-                        if ui.button(&section).clicked() {
+                        if ui
+                            .add(
+                                egui::Button::new(&section)
+                                    .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                    .fill(parse_color_from_ini("button-color")),
+                            )
+                            .clicked()
+                        {
+                            self.popup_open = false;
                             settings.set("settings", "current-theme", Some(section.to_string()));
                             let _ = settings.write(settings_path.clone());
                         }
                     }
-
-                    if ui.button("Close").clicked() {
+                    if ui
+                        .add(
+                            egui::Button::new("close")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.popup_open = false;
                     }
                 });

@@ -106,12 +106,26 @@ impl RemindersManager {
                 );
 
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
-                    if ui.button("Save").clicked() {
+                    if ui
+                        .add(
+                            egui::Button::new("Save")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.new_reminder(self.reminder_text.clone(), self.reminder_time.clone());
                         self.is_new_reminder_opens = false;
                     }
 
-                    if ui.button("Close").clicked() {
+                    if ui
+                        .add(
+                            egui::Button::new("Close")
+                                .min_size(Vec2 { x: 15.0, y: 10.0 })
+                                .fill(parse_color_from_ini("button-color")),
+                        )
+                        .clicked()
+                    {
                         self.is_new_reminder_opens = false;
                     }
                 });
