@@ -1,6 +1,7 @@
 use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::health_widget::{combined_widget, FoodWidget, WaterManager};
 use crate::ui::reminders_manager::RemindersManager;
+use crate::ui::settings::Settings;
 use crate::ui::task_manager::TaskManager;
 use crate::ui::weather_widget::WeatherWidget;
 
@@ -13,6 +14,7 @@ pub(crate) struct SideBar {
     reminders_manager: RemindersManager,
     food_widget: FoodWidget,
     water_manager: WaterManager,
+    settings: Settings,
 }
 
 impl SideBar {
@@ -26,6 +28,7 @@ impl SideBar {
             reminders_manager: RemindersManager::default(),
             food_widget: FoodWidget::default(),
             water_manager: WaterManager::default(),
+            settings: Settings::default(),
         }
     }
 }
@@ -63,6 +66,11 @@ impl eframe::App for SideBar {
                 self.task_manager.show_tasks_widget(ui, ctx);
                 combined_widget(ui, &mut self.food_widget, &mut self.water_manager);
                 self.reminders_manager.reminder_manager(ui);
+                self.settings.button_create(ui);
+
+                if self.settings.popup_open {
+                    self.settings.create_settings_window(ctx);
+                }
 
                 if self.task_manager.new_task_popup {
                     self.task_manager.new_task_popup(ctx);
