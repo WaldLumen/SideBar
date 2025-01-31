@@ -1,3 +1,4 @@
+use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::health_widget::{combined_widget, FoodWidget, WaterManager};
 use crate::ui::reminders_manager::RemindersManager;
 use crate::ui::task_manager::TaskManager;
@@ -36,13 +37,21 @@ impl eframe::App for SideBar {
             ctx.set_pixels_per_point(2.0);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                 if ui
-                    .add(egui::Button::new("Notifications").min_size(Vec2 { x: 210.0, y: 20.0 }))
+                    .add(
+                        egui::Button::new("Notifications")
+                            .min_size(Vec2 { x: 210.0, y: 20.0 })
+                            .fill(parse_color_from_ini("button-color")),
+                    )
                     .clicked()
                 {
                     self.is_notifications = true;
                 }
                 if ui
-                    .add(egui::Button::new("Widgets").min_size(Vec2 { x: 210.0, y: 20.0 }))
+                    .add(
+                        egui::Button::new("Widgets")
+                            .min_size(Vec2 { x: 210.0, y: 20.0 })
+                            .fill(parse_color_from_ini("button-color")),
+                    )
                     .clicked()
                 {
                     self.is_notifications = false;
@@ -53,9 +62,14 @@ impl eframe::App for SideBar {
                 self.weather_widget.show_weather_widget(ui);
                 self.task_manager.show_tasks_widget(ui, ctx);
                 combined_widget(ui, &mut self.food_widget, &mut self.water_manager);
+                self.reminders_manager.reminder_manager(ui);
 
                 if self.task_manager.new_task_popup {
                     self.task_manager.new_task_popup(ctx);
+                }
+
+                if self.reminders_manager.is_new_reminder_opens {
+                    self.reminders_manager.create_reminder_popup(ctx);
                 }
 
                 if self.task_manager.edit_task_popup {
@@ -66,6 +80,7 @@ impl eframe::App for SideBar {
                     self.food_widget.calory_popup(ctx);
                 }
             } else {
+                ui.label("in progress");
             }
         });
     }

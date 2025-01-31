@@ -1,4 +1,5 @@
-use egui::{Color32, Frame, Pos2, TextEdit, Vec2, Window};
+use crate::ui::color_parser::parse_color_from_ini;
+use egui::{Frame, Pos2, TextEdit, Vec2, Window};
 use std::process::Command;
 
 #[derive(Default)]
@@ -37,7 +38,7 @@ impl RemindersManager {
             // Get reminder time
             let time_output = Command::new("sh")
                 .arg("-c")
-                .arg(format!("atq {} | cut -d ' ' -f 5 | cut -d ':' -f 1,2", id))
+                .arg(format!("atq {} | cut -d ' ' -f 4 | cut -d ':' -f 1,2", id))
                 .output()
                 .expect("Failed to execute 'atq' command");
 
@@ -119,14 +120,14 @@ impl RemindersManager {
 
     pub fn reminder_manager(&mut self, ui: &mut egui::Ui) {
         let frame = Frame {
-            fill: Color32::from_rgb(255, 228, 225),
-            stroke: egui::Stroke::new(1.0, Color32::from_rgb(253, 108, 158)),
+            fill: parse_color_from_ini("frame-background"),
+            stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
             rounding: egui::Rounding::same(2.0),
             ..Default::default()
         };
 
         let container_rect =
-            egui::Rect::from_min_size(Pos2::new(7.0, 405.0), Vec2::new(438.0, 170.0));
+            egui::Rect::from_min_size(Pos2::new(7.0, 548.0), Vec2::new(438.0, 170.0));
 
         ui.allocate_ui_at_rect(container_rect, |ui| {
             frame.show(ui, |ui| {
@@ -138,7 +139,7 @@ impl RemindersManager {
                     if ui
                         .add(
                             egui::Button::new("+")
-                                .fill(Color32::from_rgb(255, 228, 225))
+                                .fill(parse_color_from_ini("button-color"))
                                 .min_size(Vec2 { x: 2.0, y: 2.0 }),
                         )
                         .clicked()
@@ -149,7 +150,7 @@ impl RemindersManager {
 
                 let reminders: Vec<Reminder> = self.get_all_reminders();
 
-                if reminders.len() >= 2 {
+                if !reminders.is_empty() {
                     egui::ScrollArea::vertical()
                         .auto_shrink([false; 2])
                         .id_source("reminder_scroll_area")
@@ -168,7 +169,7 @@ impl RemindersManager {
                                             if ui
                                                 .add(
                                                     egui::Button::new("󰆴")
-                                                        .fill(Color32::from_rgb(255, 228, 225))
+                                                        .fill(parse_color_from_ini("button-color"))
                                                         .min_size(Vec2 { x: 2.0, y: 2.0 })
                                                         .small(),
                                                 )
