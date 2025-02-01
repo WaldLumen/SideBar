@@ -39,7 +39,7 @@ impl RemindersManager {
             // Get reminder time
             let time_output = Command::new("sh")
                 .arg("-c")
-                .arg(format!("atq {} | cut -d ' ' -f 4 | cut -d ':' -f 1,2", id))
+                .arg(format!("atq {} | cut -d ' ' -f 5 | cut -d ':' -f 1,2", id))
                 .output()
                 .expect("Failed to execute 'atq' command");
 
