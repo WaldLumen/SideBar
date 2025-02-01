@@ -340,7 +340,7 @@ impl TaskManager {
         ui.horizontal(|ui| {
             if ui
                 .add(
-                    egui::Button::new("") // Иконка для редактирования
+                    egui::Button::new("") // Иконка для редактирования
                         .min_size(Vec2 { x: 16.0, y: 16.0 })
                         .fill(parse_color_from_ini("button-color")),
                 )
