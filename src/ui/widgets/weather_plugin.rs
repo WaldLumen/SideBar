@@ -2,6 +2,7 @@ use chrono::{DateTime, Duration, NaiveDate, Timelike, Utc};
 use reqwest;
 use serde::Deserialize; // Импортирование serde для десериализации JSON
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 
 #[derive(Deserialize, Debug)]
@@ -49,11 +50,17 @@ fn get_weather_info(
 }
 
 pub fn get_weather() -> Result<WeatherForecast, Box<dyn Error>> {
-    let city = "Dnipro".trim();
-    let country_code = "UA".trim();
-    let api_key = "d8d31293bee740761c9ba933823c09ea";
+    let home: String = env::var("HOME").expect("Could not determine the home directory");
+    let settings_path: String = format!("{}/{}", home, ".config/sidebar/settings.ini");
+    let settings = ini!(&settings_path);
+    let city = settings["settings"]["city"].clone().unwrap();
+    let country_code = settings["settings"]["country"].clone().unwrap();
+    let api_key = settings["settings"]["owm_api_key"]
+        .clone()
+        .unwrap()
+        .to_string();
 
-    let forecast = get_weather_info(&city, &country_code, api_key)?;
+    let forecast = get_weather_info(&city, &country_code, &api_key)?;
 
     // Текущая дата и время UTC
     let current_date = Utc::now();

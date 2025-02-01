@@ -1,6 +1,7 @@
 use crate::ui::color_parser::parse_color_from_ini;
 use egui::{Frame, Pos2, TextEdit, Vec2, Window};
 use std::process::Command;
+use tracing::info;
 
 #[derive(Default)]
 pub(crate) struct RemindersManager {
