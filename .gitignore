@@ -3,3 +3,7 @@
 *.lock
 *.db
 \$HOME/
+/.idea
+*.nix
+*.toml
+*.toml#
