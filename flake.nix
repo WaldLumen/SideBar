@@ -1,65 +1,59 @@
 {
+  description = "Flake для Rust-проєкту SideBar";
+
   inputs = {
-    naersk.url = "github:nmattia/naersk/master";
-    # This must be the stable nixpkgs if you're running the app on a
-    # stable NixOS install.  Mixing EGL library versions doesn't work.
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-21.11";
-    utils.url = "github:numtide/flake-utils";
-    flake-compat = {
-      url = github:edolstra/flake-compat;
-      flake = false;
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, utils, naersk, ... }:
-    utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
-        naersk-lib = pkgs.callPackage naersk { };
-        libPath = with pkgs; lib.makeLibraryPath [
-          libGL
-          libxkbcommon
-          wayland
-          xorg.libX11
-          xorg.libXcursor
-          xorg.libXi
-          xorg.libXrandr
-        ];
-      in
-      {
-        defaultPackage = naersk-lib.buildPackage {
-          src = ./.;
-          doCheck = true;
-          pname = "sixty-two";
-          nativeBuildInputs = [ pkgs.makeWrapper ];
-          buildInputs = with pkgs; [
-            xorg.libxcb
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = overlays;
+        };
+
+        rustToolchain = pkgs.rust-bin.stable.latest.default;
+
+      in {
+        devShells.default = pkgs.mkShell {
+          buildInputs = [
+            rustToolchain
+            pkgs.pkg-config
+            pkgs.openssl
+            pkgs.gtk3      # для eframe/egui, якщо GUI
+            pkgs.cairo
+            pkgs.glib
+	    pkgs.libxkbcommon
           ];
-          postInstall = ''
-            wrapProgram "$out/bin/sixty-two" --prefix LD_LIBRARY_PATH : "${libPath}"
+
+          RUSTFLAGS = "--cfg tokio_unstable"; # іноді потрібно для tokio з "full"
+          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        };
+
+        packages.default = pkgs.rustPlatform.buildRustPackage {
+          pname = "SideBar";
+          version = "1.0.1";
+
+          src = ./.;
+
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+
+          buildInputs = [ pkgs.openssl pkgs.pkg-config ];
+
+          nativeBuildInputs = [ pkgs.pkg-config ];
+
+          # Вказуємо на локальну залежність
+          # Важливо, щоб CaloryFetch був доступний у дереві flake
+          postPatch = ''
+            ln -s ${../CaloryFetch} calory_fetch
           '';
         };
-
-        defaultApp = utils.lib.mkApp {
-          drv = self.defaultPackage."${system}";
-        };
-
-        devShell = with pkgs; mkShell {
-          buildInputs = [
-            cargo
-            cargo-insta
-            pre-commit
-            rust-analyzer
-            rustPackages.clippy
-            rustc
-            rustfmt
-            tokei
-
-            xorg.libxcb
-          ];
-          RUST_SRC_PATH = rustPlatform.rustLibSrc;
-          LD_LIBRARY_PATH = libPath;
-          GIT_EXTERNAL_DIFF = "${difftastic}/bin/difft";
-        };
-      });
+      }
+    );
 }

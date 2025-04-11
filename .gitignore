@@ -1,9 +1,8 @@
 /target
 *~ 
-*.lock
 *.db
 \$HOME/
 /.idea
-*.nix
+s
 *.toml
 *.toml#
