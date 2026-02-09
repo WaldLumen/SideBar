@@ -7,3 +7,4 @@ pub mod reminders_manager;
 pub mod settings;
 pub mod task_manager;
 pub mod weather_widget;
+pub mod custom_vidgets;

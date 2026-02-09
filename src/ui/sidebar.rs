@@ -4,6 +4,7 @@ use crate::ui::reminders_manager::RemindersManager;
 use crate::ui::settings::Settings;
 use crate::ui::task_manager::TaskManager;
 use crate::ui::weather_widget::WeatherWidget;
+use crate::ui::custom_vidgets::StyledImageButton;
 
 use egui::{Context, Vec2};
 
@@ -66,7 +67,7 @@ impl eframe::App for SideBar {
                 self.task_manager.show_tasks_widget(ui, ctx);
                 combined_widget(ui, &mut self.food_widget, &mut self.water_manager);
                 self.reminders_manager.reminder_manager(ui);
-                self.settings.button_create(ui);
+                self.settings.button_create(ui, ctx);
 
                 if self.settings.popup_open {
                     self.settings.create_settings_window(ctx);

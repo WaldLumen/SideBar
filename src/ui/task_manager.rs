@@ -2,6 +2,8 @@ use crate::ui::color_parser::parse_color_from_ini;
 use crate::ui::widgets::todo_widget::{get_tasks, Task};
 use egui::{Frame, Key, Pos2, Rect, TextEdit, Vec2, Window};
 use std::process::Command;
+use image::GenericImageView;
+use crate::ui::custom_vidgets::StyledImageButton;
 
 pub(crate) struct TaskManager {
     pub tasks: Vec<Task>,
@@ -214,7 +216,7 @@ impl TaskManager {
             frame.show(ui, |ui| {
                 ui.label("                       Tasks:");
 
-                self.show_add_task_button(ui);
+                self.show_add_task_button(ui, ctx);
                 let task_widget_rect =
                     Rect::from_min_size(Pos2::new(10.0, 95.0), Vec2::new(400.0, 150.0));
                 ui.allocate_ui_at_rect(task_widget_rect, |ui| {
@@ -236,16 +238,23 @@ impl TaskManager {
         }
     }
 
-    fn show_add_task_button(&mut self, ui: &mut egui::Ui) {
-        let rect = egui::Rect::from_min_size(Pos2::new(420.0, 72.0), Vec2::new(0.0, 0.0));
-        ui.allocate_ui_at_rect(rect, |ui| {
-            if ui
-                .add(
-                    egui::Button::new("+")
-                        .min_size(Vec2 { x: 4.0, y: 4.0 })
-                        .fill(parse_color_from_ini("button-color")),
-                )
-                .clicked()
+    fn show_add_task_button(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let img = image::open("/home/rika/code/SideBar-Rust/src/assets/icons/add-item.png").unwrap();
+    	let size = [img.width() as usize, img.height() as usize];
+    	let image_buffer = img.to_rgba8();
+	let pixels = image_buffer.as_flat_samples();
+    	let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+    	let texture = ctx.load_texture("my_image", color_image, egui::TextureOptions::default());
+   
+        let rect = egui::Rect::from_min_size(Pos2::new(415.0, 72.0), Vec2::new(0.0, 0.0));
+
+	ui.allocate_ui_at_rect(rect, |ui| {
+        if StyledImageButton::new(&texture)
+            .size(Vec2::new(14.0, 14.0))
+            .bg_color(parse_color_from_ini("button-color"))
+            .rounding(4.0)
+            .show(ui)
+            .clicked()
             {
                 self.task_description = "".to_string();
                 self.task_project = "".to_string();

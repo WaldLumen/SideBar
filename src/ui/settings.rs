@@ -3,6 +3,8 @@ use configparser::ini::Ini;
 use egui::{Pos2, Vec2, Window};
 use std::env;
 use std::error::Error;
+use image::GenericImageView;
+use crate::ui::custom_vidgets::StyledImageButton;
 
 #[derive(Default)]
 pub struct Settings {
@@ -92,20 +94,25 @@ impl Settings {
             });
         Ok(())
     }
-    pub fn button_create(&mut self, ui: &mut egui::Ui) {
-        let container_rect =
-            egui::Rect::from_min_size(Pos2::new(430.0, 3.0), Vec2::new(15.0, 10.0));
-        ui.allocate_ui_at_rect(container_rect, |ui| {
-            if ui
-                .add(
-                    egui::Button::new("")
-                        .min_size(Vec2 { x: 15.0, y: 10.0 })
-                        .fill(parse_color_from_ini("button-color")),
-                )
-                .clicked()
-            {
-                self.popup_open = true;
-            }
-        });
-    }
+    pub fn button_create(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+    let img = image::open("/home/rika/code/SideBar-Rust/src/assets/icons/settings.png").unwrap();
+    let size = [img.width() as usize, img.height() as usize];
+    let image_buffer = img.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+    let texture = ctx.load_texture("my_image", color_image, egui::TextureOptions::default());
+    let container_rect = egui::Rect::from_min_size(Pos2::new(410.2, 8.0), Vec2::new(15.0, 10.0));
+    
+    ui.allocate_ui_at_rect(container_rect, |ui| {
+        if StyledImageButton::new(&texture)
+            .size(Vec2::new(17.0, 17.0))
+            .bg_color(parse_color_from_ini("button-color"))
+            .rounding(4.0)
+            .show(ui)
+            .clicked()
+        {
+            self.popup_open = true;
+        }
+    });
+}
 }
