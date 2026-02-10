@@ -4,8 +4,10 @@ use crate::ui::reminders_manager::RemindersManager;
 use crate::ui::settings::Settings;
 use crate::ui::task_manager::TaskManager;
 use crate::ui::weather_widget::WeatherWidget;
+use crate::ui::notifications_listener::{NotificationsListener, Notification};
 
 use egui::Context;
+use std::sync::{Arc, Mutex};
 
 #[derive(PartialEq)]
 enum ViewMode {
@@ -21,11 +23,19 @@ pub(crate) struct SideBar {
     food_widget: FoodWidget,
     water_manager: WaterManager,
     settings: Settings,
+    notifications_listener: NotificationsListener,
+    notifications: Arc<Mutex<Vec<Notification>>>,
 }
 
 impl SideBar {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self::setup_ui(&cc.egui_ctx);
+        
+        let notifications_listener = NotificationsListener::new();
+        let notifications = notifications_listener.get_notifications();
+        
+        // Запускаем слушатель
+        notifications_listener.start_listening(cc.egui_ctx.clone());
         
         Self {
             view_mode: ViewMode::Widgets,
@@ -35,6 +45,8 @@ impl SideBar {
             food_widget: FoodWidget::default(),
             water_manager: WaterManager::default(),
             settings: Settings::default(),
+            notifications_listener,
+            notifications,
         }
     }
 
@@ -90,12 +102,9 @@ impl SideBar {
 
     fn render_top_bar(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.horizontal(|ui| {
-            // Кнопки навигации
             self.render_navigation_buttons(ui);
             
-            // Пушер - занимает все оставшееся пространство
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                // Кнопка настроек справа
                 self.settings.button_create(ui, ctx);
             });
         });
@@ -131,9 +140,16 @@ impl SideBar {
 
         ui.add_space(button_spacing);
 
+        let notif_count = self.notifications_listener.get_count();
+        let button_text = if notif_count > 0 {
+            format!("Notifications ({})", notif_count)
+        } else {
+            "Notifications".to_string()
+        };
+
         if ui
             .add(
-                egui::Button::new("Notifications")
+                egui::Button::new(button_text)
                     .min_size(egui::Vec2::new(button_width, 30.0))
                     .rounding(5.0)
                     .fill(notifications_color),
@@ -161,13 +177,119 @@ impl SideBar {
     }
 
     fn render_notifications_view(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
-            ui.add_space(50.0);
+    ui.vertical(|ui| {
+        ui.add_space(10.0);
+        
+        ui.horizontal(|ui| {
             ui.heading("🔔 Notifications");
-            ui.add_space(20.0);
-            ui.label("Feature in progress...");
+            
+            let count = self.notifications_listener.get_count();
+            ui.label(egui::RichText::new(format!("({})", count))
+                .size(12.0)
+                .color(egui::Color32::GRAY));
+            
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Clear All").clicked() {
+                    self.notifications_listener.clear_all();
+                }
+            });
         });
-    }
+        
+        ui.add_space(10.0);
+        ui.separator();
+        ui.add_space(10.0);
+        
+        egui::ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+                // Клонируем уведомления чтобы избежать borrow checker проблем
+                let notifications_clone = if let Ok(notifs) = self.notifications.lock() {
+                    notifs.clone()
+                } else {
+                    Vec::new()
+                };
+                
+                if notifications_clone.is_empty() {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(50.0);
+                        ui.label("No notifications yet");
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("Listening via dbus-monitor...")
+                            .size(12.0)
+                            .color(egui::Color32::GRAY));
+                        ui.add_space(5.0);
+                        ui.label(egui::RichText::new("Try: notify-send 'Test' 'Message'")
+                            .size(11.0)
+                            .color(egui::Color32::DARK_GRAY)
+                            .italics());
+                    });
+                } else {
+                    // Показываем в обратном порядке (новые сверху)
+                    for notification in notifications_clone.iter().rev() {
+                        self.render_notification_card(ui, notification);
+                        ui.add_space(8.0);
+                    }
+                }
+            });
+    });
+}
+
+    fn render_notification_card(&mut self, ui: &mut egui::Ui, notification: &Notification) {
+    let notification_id = notification.id;
+    
+    egui::Frame::none()
+        .fill(parse_color_from_ini("button-color").linear_multiply(0.3))
+        .rounding(8.0)
+        .inner_margin(12.0)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(&notification.app_name)
+                                .strong()
+                                .size(13.0)
+                        );
+                        
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // Кнопка удаления
+                            if ui.button(egui::RichText::new("✕")
+                                .size(14.0)
+                                .color(egui::Color32::from_rgb(200, 60, 60)))
+                                .on_hover_text("Remove notification")
+                                .clicked() 
+                            {
+                                self.notifications_listener.remove_notification(notification_id);
+                            }
+                            
+                            ui.add_space(5.0);
+                            
+                            ui.label(
+                                egui::RichText::new(&notification.timestamp)
+                                    .size(11.0)
+                                    .color(egui::Color32::GRAY)
+                            );
+                        });
+                    });
+                    
+                    if !notification.summary.is_empty() {
+                        ui.label(
+                            egui::RichText::new(&notification.summary)
+                                .size(14.0)
+                        );
+                    }
+                    
+                    if !notification.body.is_empty() {
+                        ui.label(
+                            egui::RichText::new(&notification.body)
+                                .size(12.0)
+                                .color(egui::Color32::DARK_GRAY)
+                        );
+                    }
+                });
+            });
+        });
+}
 
     fn render_popups(&mut self, ctx: &egui::Context) {
         if self.settings.popup_open {
@@ -199,20 +321,17 @@ impl eframe::App for SideBar {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
             
-            // Верхняя панель с навигацией и настройками
             self.render_top_bar(ui, ctx);
             
             ui.add_space(10.0);
             ui.separator();
             
-            // Контент в зависимости от выбранной вкладки
             match self.view_mode {
                 ViewMode::Widgets => self.render_widgets_view(ui, ctx),
                 ViewMode::Notifications => self.render_notifications_view(ui),
             }
         });
 
-        // Рендерим попапы после основного UI
         self.render_popups(ctx);
     }
 }
