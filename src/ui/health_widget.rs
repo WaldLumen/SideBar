@@ -1,375 +1,504 @@
 use crate::ui::color_parser::parse_color_from_ini;
+use crate::ui::settings::{get_daily_water_goal, get_water_increment, get_daily_calorie_goal};
 use bincode;
 use calory_fetch::{fetch_calory_of_certain_food, fetch_data};
 use chrono::{DateTime, Local};
-use egui::{Frame, Pos2, TextEdit, Ui, Vec2, Window};
+use egui::{Frame, TextEdit, Ui, Vec2, Window};
 use sled::{Db, Result};
 use std::env;
-
+use std::path::PathBuf;
 use tokio::runtime::Runtime;
+
+
+const GRAMS_PER_100G: i32 = 100;
+const NARROW_WINDOW_THRESHOLD: f32 = 600.0; // Порог для переключения на вертикальную верстку
+
 
 #[derive(Default)]
 pub struct FoodWidget {
-    pub query: String,
-    pub dish_name: String,
-    pub results: Vec<(String, String)>,
-    pub dish_calory: i32, // Хранит список (название и URL) для каждого результата
-    pub selected_food: Option<(String, String)>, // Хранит выбранное название и калорийность блюда
-    pub db: Option<Db>,   // Опциональная база данных
-    pub calory: i32,      // Калорийность для текущей даты
+    query: String,
+    dish_name: String,
+    results: Vec<(String, String)>,
+    dish_calory: i32,
+    selected_food: Option<(String, String)>,
+    db: Option<Db>,
+    calory: i32,
     pub calory_popup: bool,
-    pub food_amount: String,
+    food_amount: String,
+    runtime: Option<Runtime>,
 }
 
 impl FoodWidget {
-    fn open_db(&self, path: &str) -> Result<Db> {
-        sled::open(path)
-    }
-    pub fn calory_popup(&mut self, ctx: &egui::Context) {
-        if self.calory_popup {
-            Window::new("Calory")
-                .title_bar(false)
-                .collapsible(false)
-                .resizable(false)
-                .fixed_size(Vec2::new(300.0, 500.0))
-                .show(ctx, |ui| {
-                    // Label for input
-                    ui.label(self.dish_name.clone());
-                    ui.label(format!("{} kkal in 100 mg", self.dish_calory));
-                    ui.label("Food Amount (in grams):");
-                    // Input field with hint text
-                    ui.add(
-                        TextEdit::multiline(&mut self.food_amount)
-                            .hint_text("Enter amount here...")
-                            .min_size(Vec2::new(300.0, 100.0)),
-                    );
-
-                    // Parse food_amount input
-                    if let Ok(food_amount_int) = self.food_amount.parse::<i32>() {
-                        let calculated_calory = food_amount_int * self.dish_calory / 100;
-
-                        // Display calculated calories
-                        ui.label(format!("Calories: {}", calculated_calory));
-
-                        // Add button (only active when input is valid)
-                        if ui.button("Add").clicked() {
-                            self.update_today_calory(calculated_calory);
-                            self.calory_popup = false;
-                        }
-                    }
-
-                    /*
-                    Close button
-                    */
-                    if ui.button("Close").clicked() {
-                        self.calory_popup = false;
-                    }
-                });
+    pub fn new() -> Self {
+        Self {
+            runtime: Some(Runtime::new().unwrap()),
+            ..Default::default()
         }
     }
 
-    fn init_today_record(&mut self) {
-        if let Some(db) = &self.db {
-            let date = self.get_date();
-            if let Some(stored_value) = db.get(date.as_bytes()).unwrap() {
-                self.calory = bincode::deserialize(&stored_value).unwrap();
-                println!(
-                    "Запись на дату {} уже существует, значение: {} калорий",
-                    date, self.calory
-                );
-            } else {
-                self.calory = 0;
-                db.insert(date.as_bytes(), bincode::serialize(&self.calory).unwrap())
-                    .unwrap();
-                db.flush().unwrap();
-                println!(
-                    "Создана новая запись для {} с начальным значением: 0 калорий",
-                    date
-                );
-            }
-        }
+    fn get_db_path() -> PathBuf {
+        let home = env::var("HOME").expect("Could not determine HOME directory");
+        PathBuf::from(home).join(".local/share/SideBarFoodDb")
     }
 
-    fn update_today_calory(&mut self, additional_calory: i32) {
-        if let Some(db) = &self.db {
-            let date = self.get_date();
-            self.calory += additional_calory;
-            db.insert(date.as_bytes(), bincode::serialize(&self.calory).unwrap())
-                .unwrap();
-            db.flush().unwrap();
-            println!(
-                "Обновлено значение калорий на дату {}: {} калорий",
-                date, self.calory
-            );
-        }
-    }
-
-    fn calorie_adjustment_widget(&mut self, ui: &mut Ui, frame: Frame) -> Result<()> {
-        let home: String = env::var("HOME").expect("Could not determine the home directory");
-        let db_path: String = format!("{}/{}", home, ".local/share/SideBarFoodDb");
-        let rt = Runtime::new().unwrap();
-        let date = self.get_date();
+    fn ensure_db(&mut self) -> Result<()> {
         if self.db.is_none() {
-            self.db = Some(self.open_db(&db_path)?);
-            self.init_today_record();
+            let db = sled::open(Self::get_db_path())?;
+            self.db = Some(db);
+            self.init_today_record()?;
         }
-
-        let container_rect =
-            egui::Rect::from_min_size(Pos2::new(110.0, 420.0), Vec2::new(90.0, 60.0));
-        ui.allocate_ui_at_rect(container_rect, |ui| {
-            ui.allocate_space(Vec2::new(0.0, 3.0));
-            frame.show(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                    ui.allocate_space(Vec2::new(0.0, 6.0));
-                    ui.label("󰉚");
-                    ui.label(date.clone());
-                    ui.label(format!("{} kkal", self.calory));
-                    ui.label("2000 kkal");
-                    ui.allocate_space(Vec2::new(0.0, 3.0));
-                });
-
-                let search_rect =
-                    egui::Rect::from_min_size(Pos2::new(205.0, 433.0), Vec2::new(340.0, 120.0));
-                ui.allocate_ui_at_rect(search_rect, |ui| {
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            // Поле для ввода количества калорий для добавления или вычитания
-
-                            let add_sized = ui.add_sized(
-                                Vec2::new(135.0, 25.0),
-                                egui::TextEdit::singleline(&mut self.query),
-                            );
-
-                            if ui
-                                .add_sized(
-                                    Vec2::new(80.0, 25.0),
-                                    egui::Button::new("Search")
-                                        .fill(parse_color_from_ini("button-color")),
-                                )
-                                .clicked()
-                            {
-                                let result = rt.block_on(fetch_data(&self.query));
-                                self.results = result
-                                    .into_iter()
-                                    .map(|item| (item.value.clone(), item.url.clone()))
-                                    .collect();
-                            }
-                            ui.allocate_space(Vec2::new(3.0, 3.0));
-                        });
-
-                        egui::ScrollArea::vertical()
-                            .auto_shrink([false; 2])
-                            .max_width(230.0)
-                            .max_height(13.0)
-                            .id_source("food_results_scroll_area")
-                            .show(ui, |ui| {
-                                for (name, url) in self.results.clone() {
-                                    if ui
-                                        .add_sized(
-                                            Vec2::new(ui.available_width(), 30.0),
-                                            egui::Button::new(name.clone())
-                                                .fill(parse_color_from_ini("button-color")),
-                                        )
-                                        .clicked()
-                                    {
-                                        let calory =
-                                            rt.block_on(fetch_calory_of_certain_food(url.clone()));
-
-                                        // Сохраняем выбранное блюдо
-                                        self.selected_food =
-                                            Some((calory[1].clone(), calory[0].clone()));
-
-                                        self.dish_calory = calory[0]
-                                            .clone()
-                                            .chars()
-                                            .filter(|c| c.is_ascii_digit()) // Keep only numeric characters
-                                            .collect::<String>() // Collect into a String
-                                            .parse() // Parse the String to an i32
-                                            .unwrap_or(0); // Default to 0 if parsing fails
-
-                                        // Обновляем данные калорийности вне замыкания
-
-                                        self.food_amount = "0".to_string();
-                                        self.calory_popup = true;
-                                    }
-                                }
-                            });
-                    });
-                });
-            });
-        });
         Ok(())
     }
 
-    fn get_date(&self) -> String {
-        let local: DateTime<Local> = Local::now();
-        local.format("%d.%m").to_string()
+    fn get_date() -> String {
+        Local::now().format("%d.%m").to_string()
     }
-}
 
-#[derive(Default)]
-pub struct WaterManager {
-    pub water_amount: u32,
-    pub is_update: bool,
-    pub is_first_call: bool,
-    pub is_first_init: bool,
-}
-
-impl WaterManager {
-    pub fn water_widget(&mut self, ui: &mut egui::Ui, frame: Frame) -> Result<()> {
-        let date: String = self.get_date();
-        let home: String = env::var("HOME").expect("Could not determine the home directory");
-        let db_path: String = format!("{}/{}", home, ".local/share/SideBarWaterDb");
-
-        // Открываем базу данных с обработкой ошибок
-        let db: Db = self.open_db(&db_path)?;
-        if !self.is_first_init {
-            // Инициализируем запись на текущую дату и устанавливаем значение self.water_amount
-            self.init_today_record(&db, date.clone())?;
-            self.is_first_init = true;
-        }
-        if self.is_update || self.is_first_call {
-            match self.get_water_data(&db, date.clone()).unwrap() {
-                Some(amount) => {
-                    let rect1 =
-                        egui::Rect::from_min_size(Pos2::new(14.0, 413.0), Vec2::new(90.0, 40.0));
-
-                    ui.allocate_space(Vec2::new(438.0, 1.0));
-
-                    ui.allocate_ui_at_rect(rect1, |ui| {
-                        ui.allocate_space(Vec2::new(1.0, 3.0));
-                        frame.show(ui, |ui| {
-                            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                                ui.allocate_space(Vec2::new(1.0, 3.0));
-                                ui.label("󰆫");
-                                ui.label(date.clone().to_string());
-                                ui.label(format!("{} ml", amount));
-                                ui.label("2000 ml");
-                                ui.horizontal(|ui| {
-                                    ui.allocate_space(Vec2::new(15.0, 1.0));
-                                    if ui
-                                        .add(
-                                            egui::Button::new("+")
-                                                .min_size(Vec2 { x: 14.0, y: 10.0 })
-                                                .fill(parse_color_from_ini("button-color")),
-                                        )
-                                        .clicked()
-                                    {
-                                        self.water_amount += 400;
-                                        let _ = self.update_water_data(
-                                            &db,
-                                            date.clone(),
-                                            self.water_amount,
-                                        );
-                                        self.is_update = true;
-                                    }
-                                    if ui
-                                        .add(
-                                            egui::Button::new("-")
-                                                .fill(parse_color_from_ini("button-color"))
-                                                .min_size(Vec2 { x: 14.0, y: 10.0 }),
-                                        )
-                                        .clicked()
-                                    {
-                                        self.water_amount = self.water_amount.saturating_sub(400);
-                                        let _ = self.update_water_data(
-                                            &db,
-                                            date.clone(),
-                                            self.water_amount,
-                                        );
-                                        self.is_update = true;
-                                    }
-                                });
-                                ui.allocate_space(Vec2::new(1.0, 3.0));
-                            });
-                        });
-                        ui.allocate_space(Vec2::new(1.0, 3.0));
-                    });
+    fn init_today_record(&mut self) -> Result<()> {
+        if let Some(db) = &self.db {
+            let date = Self::get_date();
+            
+            match db.get(date.as_bytes())? {
+                Some(stored_value) => {
+                    self.calory = bincode::deserialize(&stored_value)
+                        .unwrap_or(0);
                 }
                 None => {
-                    ui.label(format!("Запись для {} не найдена.", date));
+                    self.calory = 0;
+                    db.insert(date.as_bytes(), bincode::serialize(&self.calory).unwrap())?;
+                    db.flush()?;
                 }
             }
-            self.is_first_call = false;
         }
-
         Ok(())
     }
 
-    fn open_db(&mut self, path: &str) -> Result<Db> {
-        let db = sled::open(path)?;
-        Ok(db)
-    }
-
-    fn get_date(&mut self) -> String {
-        let local: DateTime<Local> = Local::now();
-        local.format("%d.%m").to_string()
-    }
-
-    fn init_today_record(&mut self, db: &Db, date: String) -> sled::Result<()> {
-        // Получаем данные из базы для текущей даты
-        if let Some(stored_value) = db.get(date.as_bytes())? {
-            // Если запись существует, загружаем количество воды
-            self.water_amount = bincode::deserialize(&stored_value).unwrap();
-            println!(
-                "Запись на дату {} уже существует, значение: {} мл",
-                date, self.water_amount
-            );
-        } else {
-            // Если записи нет, инициализируем количество воды нулем
-            self.water_amount = 0;
-            db.insert(
-                date.as_bytes(),
-                bincode::serialize(&self.water_amount).unwrap(),
-            )?;
+    fn update_calories(&mut self, additional: i32) -> Result<()> {
+        if let Some(db) = &self.db {
+            let date = Self::get_date();
+            self.calory += additional;
+            db.insert(date.as_bytes(), bincode::serialize(&self.calory).unwrap())?;
             db.flush()?;
-            println!(
-                "Создана новая запись для {} с начальным значением: 0 мл",
-                date
-            );
         }
-        self.is_update = true;
         Ok(())
     }
 
-    fn get_water_data(&self, db: &Db, date: String) -> Result<Option<u32>> {
-        if let Some(stored_value) = db.get(date.as_bytes())? {
-            let water_amount: u32 = bincode::deserialize(&stored_value).unwrap();
-            Ok(Some(water_amount))
+    pub fn render_popup(&mut self, ctx: &egui::Context) {
+        if !self.calory_popup {
+            return;
+        }
+
+        let bg_color = parse_color_from_ini("background-color");
+        let text_color = parse_color_from_ini("text-color");
+        let button_color = parse_color_from_ini("button-color");
+
+        let screen_size = ctx.screen_rect().size();
+        let popup_width = (screen_size.x * 0.9).min(350.0).max(280.0);
+        let popup_height = 300.0;
+
+        Window::new("Add Food")
+            .title_bar(true)
+            .collapsible(false)
+            .resizable(false)
+            .fixed_size(Vec2::new(popup_width, popup_height))
+            .frame(Frame::window(&ctx.style()).fill(bg_color))
+            .show(ctx, |ui| {
+                ui.style_mut().visuals.override_text_color = Some(text_color);
+
+                ui.vertical_centered(|ui| {
+                    ui.add_space(10.0);
+                    
+                    ui.heading(&self.dish_name);
+                    ui.add_space(5.0);
+                    
+                    ui.label(format!("{} kcal per 100g", self.dish_calory));
+                    ui.add_space(15.0);
+                    
+                    ui.label("Amount (grams):");
+                    ui.add(
+                        TextEdit::singleline(&mut self.food_amount)
+                            .hint_text("Enter amount...")
+                            .desired_width(ui.available_width() * 0.8)
+                    );
+                    ui.add_space(10.0);
+
+                    if let Ok(amount) = self.food_amount.parse::<i32>() {
+                        let total_calories = (amount * self.dish_calory) / GRAMS_PER_100G;
+                        
+                        ui.label(format!("Total: {} kcal", total_calories));
+                        ui.add_space(15.0);
+
+                        let button_width = (ui.available_width() * 0.45).min(120.0);
+                        
+                        ui.horizontal(|ui| {
+                            if ui.add(
+                                egui::Button::new("✓ Add")
+                                    .min_size(Vec2::new(button_width, 35.0))
+                                    .fill(button_color)
+                            ).clicked() {
+                                let _ = self.update_calories(total_calories);
+                                self.calory_popup = false;
+                                self.food_amount.clear();
+                            }
+
+                            if ui.add(
+                                egui::Button::new("✖ Cancel")
+                                    .min_size(Vec2::new(button_width, 35.0))
+                                    .fill(button_color.linear_multiply(0.7))
+                            ).clicked() {
+                                self.calory_popup = false;
+                                self.food_amount.clear();
+                            }
+                        });
+                    } else {
+                        ui.label("Please enter a valid number");
+                    }
+                });
+            });
+    }
+
+    fn render_search(&mut self, ui: &mut Ui) {
+        let button_color = parse_color_from_ini("button-color");
+        let available_width = ui.available_width();
+        let is_narrow = available_width < 300.0;
+
+        if is_narrow {
+            ui.vertical(|ui| {
+                ui.add(
+                    TextEdit::singleline(&mut self.query)
+                        .hint_text("Search food...")
+                        .desired_width(ui.available_width())
+                );
+                
+                ui.add_space(5.0);
+
+                if ui.add(
+                    egui::Button::new("🔍 Search")
+                        .min_size(Vec2::new(ui.available_width(), 25.0))
+                        .fill(button_color)
+                ).clicked() {
+                    if let Some(rt) = &self.runtime {
+                        let results = rt.block_on(fetch_data(&self.query));
+                        self.results = results
+                            .into_iter()
+                            .map(|item| (item.value, item.url))
+                            .collect();
+                    }
+                }
+            });
         } else {
-            Ok(None)
+            ui.horizontal(|ui| {
+                let search_width = (available_width * 0.65).max(150.0);
+                
+                ui.add(
+                    TextEdit::singleline(&mut self.query)
+                        .hint_text("Search food...")
+                        .desired_width(search_width)
+                );
+
+                if ui.add(
+                    egui::Button::new("🔍 Search")
+                        .min_size(Vec2::new(80.0, 25.0))
+                        .fill(button_color)
+                ).clicked() {
+                    if let Some(rt) = &self.runtime {
+                        let results = rt.block_on(fetch_data(&self.query));
+                        self.results = results
+                            .into_iter()
+                            .map(|item| (item.value, item.url))
+                            .collect();
+                    }
+                }
+            });
         }
     }
 
-    fn update_water_data(&self, db: &Db, date: String, new_amount: u32) -> sled::Result<()> {
-        if (db.get(date.as_bytes())?).is_some() {
-            db.insert(date.as_bytes(), bincode::serialize(&new_amount).unwrap())?;
-            db.flush()?;
-            println!("Запись для {} обновлена: {} мл", date, new_amount);
-        } else {
-            println!("Запись для {} не найдена.", date);
-        }
+    fn render_results(&mut self, ui: &mut Ui) {
+        let button_color = parse_color_from_ini("button-color");
+        let available_width = ui.available_width();
+        let max_height = if available_width < 300.0 { 120.0 } else { 80.0 };
+
+        egui::ScrollArea::vertical()
+            .id_source("food_search_results")
+            .max_height(max_height)
+            .show(ui, |ui| {
+                for (name, url) in self.results.clone() {
+                    if ui.add(
+                        egui::Button::new(&name)
+                            .min_size(Vec2::new(ui.available_width(), 30.0))
+                            .fill(button_color)
+                            .wrap(true) // Перенос текста для узких окон
+                    ).clicked() {
+                        if let Some(rt) = &self.runtime {
+                            let calory_data = rt.block_on(fetch_calory_of_certain_food(url));
+                            
+                            self.dish_name = calory_data.get(1).cloned().unwrap_or_default();
+                            self.dish_calory = calory_data
+                                .get(0)
+                                .and_then(|s| s.chars()
+                                    .filter(|c| c.is_ascii_digit())
+                                    .collect::<String>()
+                                    .parse()
+                                    .ok())
+                                .unwrap_or(0);
+                            
+                            self.food_amount = String::from("100");
+                            self.calory_popup = true;
+                        }
+                    }
+                }
+            });
+    }
+
+    pub fn render(&mut self, ui: &mut Ui) -> Result<()> {
+        let _ = self.ensure_db();
+
+        ui.vertical(|ui| {
+            ui.heading("🍽 Food Tracker");
+            ui.add_space(5.0);
+
+            let available_width = ui.available_width();
+            let is_very_narrow = available_width < 200.0;
+
+            if is_very_narrow {
+                ui.label(format!("Date: {}", Self::get_date()));
+                ui.label(format!("Cal: {} / {}", self.calory, get_daily_calorie_goal()));
+            } else {
+                ui.horizontal(|ui| {
+                    ui.label("Date:");
+                    ui.label(Self::get_date());
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Calories:");
+                    ui.label(format!("{} / {} kcal", self.calory, get_daily_calorie_goal()));
+                });
+            }
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
+            // Search
+            self.render_search(ui);
+            ui.add_space(5.0);
+
+            // Results
+            if !self.results.is_empty() {
+                self.render_results(ui);
+            }
+        });
+
         Ok(())
     }
 }
+
+
+#[derive(Default)]
+pub struct WaterWidget {
+    water_amount: u32,
+    db: Option<Db>,
+    initialized: bool,
+}
+
+impl WaterWidget {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn get_db_path() -> PathBuf {
+        let home = env::var("HOME").expect("Could not determine HOME directory");
+        PathBuf::from(home).join(".local/share/SideBarWaterDb")
+    }
+
+    fn get_date() -> String {
+        Local::now().format("%d.%m").to_string()
+    }
+
+    fn ensure_db(&mut self) -> Result<()> {
+        if self.db.is_none() {
+            let db = sled::open(Self::get_db_path())?;
+            self.db = Some(db);
+        }
+
+        if !self.initialized {
+            self.init_today_record()?;
+            self.initialized = true;
+        }
+
+        Ok(())
+    }
+
+    fn init_today_record(&mut self) -> Result<()> {
+        if let Some(db) = &self.db {
+            let date = Self::get_date();
+
+            match db.get(date.as_bytes())? {
+                Some(stored_value) => {
+                    self.water_amount = bincode::deserialize(&stored_value)
+                        .unwrap_or(0);
+                }
+                None => {
+                    self.water_amount = 0;
+                    db.insert(date.as_bytes(), bincode::serialize(&self.water_amount).unwrap())?;
+                    db.flush()?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn update_water(&mut self, new_amount: u32) -> Result<()> {
+        if let Some(db) = &self.db {
+            let date = Self::get_date();
+            self.water_amount = new_amount;
+            db.insert(date.as_bytes(), bincode::serialize(&self.water_amount).unwrap())?;
+            db.flush()?;
+        }
+        Ok(())
+    }
+
+    pub fn render(&mut self, ui: &mut Ui) -> Result<()> {
+        let _ = self.ensure_db();
+        let button_color = parse_color_from_ini("button-color");
+        let available_width = ui.available_width();
+        let is_very_narrow = available_width < 200.0;
+        
+
+        let daily_water_goal = get_daily_water_goal();
+        let water_increment = get_water_increment();
+
+        ui.vertical(|ui| {
+            ui.heading("💧 Water Tracker");
+            ui.add_space(5.0);
+
+            if is_very_narrow {
+                ui.label(format!("Date: {}", Self::get_date()));
+                ui.label(format!("{} / {} ml", self.water_amount, daily_water_goal));
+            } else {
+                ui.horizontal(|ui| {
+                    ui.label("Date:");
+                    ui.label(Self::get_date());
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Amount:");
+                    ui.label(format!("{} / {} ml", self.water_amount, daily_water_goal));
+                });
+            }
+
+            ui.add_space(10.0);
+
+
+            let progress = (self.water_amount as f32) / (daily_water_goal as f32);
+            ui.add(egui::ProgressBar::new(progress).show_percentage());
+
+            ui.add_space(10.0);
+
+            let is_narrow = available_width < 250.0;
+            
+            if is_narrow {
+                if ui.add(
+                    egui::Button::new(format!("+ {} ml", water_increment))
+                        .min_size(Vec2::new(ui.available_width(), 30.0))
+                        .fill(button_color)
+                ).clicked() {
+                    let _ = self.update_water(self.water_amount + water_increment);
+                }
+
+                ui.add_space(5.0);
+
+                if ui.add(
+                    egui::Button::new(format!("- {} ml", water_increment))
+                        .min_size(Vec2::new(ui.available_width(), 30.0))
+                        .fill(button_color.linear_multiply(0.7))
+                ).clicked() {
+                    let _ = self.update_water(self.water_amount.saturating_sub(water_increment));
+                }
+            } else {
+                ui.horizontal(|ui| {
+                    let button_width = (ui.available_width() * 0.48).min(100.0);
+                    
+                    if ui.add(
+                        egui::Button::new(format!("+ {} ml", water_increment))
+                            .min_size(Vec2::new(button_width, 30.0))
+                            .fill(button_color)
+                    ).clicked() {
+                        let _ = self.update_water(self.water_amount + water_increment);
+                    }
+
+                    if ui.add(
+                        egui::Button::new(format!("- {} ml", water_increment))
+                            .min_size(Vec2::new(button_width, 30.0))
+                            .fill(button_color.linear_multiply(0.7))
+                    ).clicked() {
+                        let _ = self.update_water(self.water_amount.saturating_sub(water_increment));
+                    }
+                });
+            }
+        });
+
+        Ok(())
+    }
+}
+
+pub struct HealthWidget {
+    pub food_widget: FoodWidget,
+    pub water_widget: WaterWidget,
+}
+
+impl Default for HealthWidget {
+    fn default() -> Self {
+        Self {
+            food_widget: FoodWidget::new(),
+            water_widget: WaterWidget::new(),
+        }
+    }
+}
+
+impl HealthWidget {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn render(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        self.food_widget.render_popup(ctx);
+
+        let frame = Frame {
+            fill: parse_color_from_ini("frame-background"),
+            stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
+            rounding: egui::Rounding::same(8.0),
+            inner_margin: egui::Margin::same(15.0),
+            ..Default::default()
+        };
+
+        frame.show(ui, |ui| {
+            let available_width = ui.available_width();
+            if available_width >= NARROW_WINDOW_THRESHOLD {
+                ui.columns(2, |columns| {
+                    let _ = self.food_widget.render(&mut columns[0]);
+                    // Right column - Water tracker
+                    let _ = self.water_widget.render(&mut columns[1]);
+                });
+            } else {
+                
+                let _ = self.food_widget.render(ui);
+                
+                ui.add_space(15.0);
+                ui.separator();
+                ui.add_space(15.0);
+                
+                let _ = self.water_widget.render(ui);
+            }
+        });
+    }
+}
+
 
 pub fn combined_widget(
     ui: &mut Ui,
-    food_widget: &mut FoodWidget,
-    water_manager: &mut WaterManager,
+    ctx: &egui::Context,
+    health_widget: &mut HealthWidget,
 ) {
-    let frame = Frame {
-        fill: parse_color_from_ini("frame-background"),
-        stroke: egui::Stroke::new(1.0, parse_color_from_ini("frame-border-color")),
-        rounding: egui::Rounding::same(2.0),
-        ..Default::default()
-    };
-
-    let container_rect = egui::Rect::from_min_size(Pos2::new(7.0, 410.0), Vec2::new(410.0, 140.0));
-    ui.allocate_ui_at_rect(container_rect, |ui| {
-        frame.show(ui, |ui| {
-            let _ = food_widget.calorie_adjustment_widget(ui, frame);
-            let _ = water_manager.water_widget(ui, frame);
-        });
-    });
+    health_widget.render(ui, ctx);
 }

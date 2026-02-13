@@ -9,3 +9,5 @@ pub mod task_manager;
 pub mod weather_widget;
 pub mod custom_vidgets;
 pub mod notifications_listener;
+pub mod aw_qt;
+pub mod activitywatch_reader;
